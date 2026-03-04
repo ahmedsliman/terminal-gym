@@ -1,0 +1,27 @@
+# ── Session state (auto-saved per-machine, never committed) ───────────────────
+.state/
+
+# ── Course source material (personal copy, not redistributed) ─────────────────
+Sami/
+Sami*/
+*.zip
+CONTENT.md
+
+# ── Personal sandbox ──────────────────────────────────────────────────────────
+lab/*
+!lab/.gitkeep
+
+# ── Scratch files from practice sessions ──────────────────────────────────────
+/tmp/
+
+# ── Claude Code internal files ────────────────────────────────────────────────
+.claude/
+
+# ── OS & editor noise ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
