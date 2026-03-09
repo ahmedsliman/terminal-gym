@@ -198,9 +198,13 @@ review: _require_n _pad
 	printf "$(MG)  │$(R)  Navigate with arrow keys · Press $(B)q$(R) to quit\n"; \
 	printf "$(MG)  └───────────────────────────────────────────────────────$(R)\n\n"; \
 	files=""; \
-	[ -f "$$dir/README.md"   ] && files="$$files $$dir/README.md"; \
-	[ -f "$$dir/exercises.md"] && files="$$files $$dir/exercises.md"; \
-	[ -f "$$dir/solution.md" ] && files="$$files $$dir/solution.md"; \
+	[ -f "$$dir/README.md"    ] && files="$$files $$dir/README.md" \
+	                            || printf "$(MG)  │$(R)  $(D)README.md    — not yet written$(R)\n"; \
+	[ -f "$$dir/exercises.md" ] && files="$$files $$dir/exercises.md" \
+	                            || printf "$(MG)  │$(R)  $(D)exercises.md — not yet written$(R)\n"; \
+	[ -f "$$dir/solution.md"  ] && files="$$files $$dir/solution.md" \
+	                            || printf "$(MG)  │$(R)  $(D)solution.md  — not yet written$(R)\n"; \
+	[ -z "$$files" ] && { printf "$(MG)  └───────────────────────────────────────────────────────$(R)\n\n"; exit 0; }; \
 	$(PAGER) $$files
 
 # ── hint ──────────────────────────────────────────────────────────────────────
@@ -212,7 +216,9 @@ hint: _require_n _pad
 	fi; \
 	file="$$dir/exercises.md"; \
 	if [ ! -f "$$file" ]; then \
-		printf "\n  $(RD)✗  exercises.md not found for Mission $(PADDED).$(R)\n\n"; exit 1; \
+		printf "\n  $(YL)  Hints for Mission $(PADDED) are not available yet.$(R)\n"; \
+		printf "  $(D)exercises.md has not been written for this mission.$(R)\n\n"; \
+		exit 0; \
 	fi; \
 	printf "\n"; \
 	printf "$(B)$(YL)  ┌─ HINTS  ·  Mission $(PADDED)$(R)\n"; \
@@ -256,7 +262,9 @@ solution: _require_n _pad
 	fi; \
 	file="$$dir/solution.md"; \
 	if [ ! -f "$$file" ]; then \
-		printf "\n  $(RD)✗  No solution file for Mission $(PADDED).$(R)\n\n"; exit 1; \
+		printf "\n  $(YL)  Solution for Mission $(PADDED) is not available yet.$(R)\n"; \
+		printf "  $(D)solution.md has not been written for this mission.$(R)\n\n"; \
+		exit 0; \
 	fi; \
 	printf "\n"; \
 	printf "  $(B)$(YL)⚠  Revealing the solution for Mission $(PADDED).$(R)\n"; \

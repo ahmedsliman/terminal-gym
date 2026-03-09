@@ -127,7 +127,7 @@ _meta_restart() {
   [ "$target" -lt 0 ] && target=0
   STEP_NUM=$target
   _save_state
-  printf "\n  ${CY}Restarting step ${STEP_NUM+1} ...${R}\n\n"
+  printf "\n  ${CY}Restarting step $((STEP_NUM + 1)) ...${R}\n\n"
   sleep 0.4
   exec bash "$_PRACTICE_PATH"
 }
@@ -233,7 +233,6 @@ init_mission() {
   local saved_step=0
   if _load_state 2>/dev/null; then
     saved_step=$RESUME_FROM
-    ERRORS=0
   fi
 
   clear
