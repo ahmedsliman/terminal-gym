@@ -26,7 +26,12 @@ _hr() {
 }
 
 _compact_header() {
-  printf "  ${D}Step ${STEP_NUM}/${STEP_TOTAL}  ·  ${STEP_TITLE}${R}\n"
+  local filled=$(( STEP_NUM * 12 / STEP_TOTAL ))
+  local empty=$(( 12 - filled ))
+  local bar="" emp=""
+  for i in $(seq 1 $filled 2>/dev/null); do bar="${bar}━"; done
+  for i in $(seq 1 $empty  2>/dev/null); do emp="${emp}─"; done
+  printf "  ${CY}${bar}${D}${emp}  ${R}${B}${CY}${STEP_NUM}${R}${D}/${STEP_TOTAL}  ·  ${STEP_TITLE}${R}\n"
   printf "  ${D}────────────────────────────────────────────────────────${R}\n\n"
 }
 
@@ -191,15 +196,25 @@ _read_try() {
 
 # ── _read_pause: looping read for "press enter" prompts ───────────────────────
 _read_pause() {
-  local msg="${1:-Press Enter to continue (? for commands)}"
+  local msg="${1:-}"
+  local first=1
   while true; do
-    printf "  ${D}${msg}${R}  "
+    if [ "$first" -eq 1 ]; then
+      if [ -z "$msg" ]; then
+        printf "  ${B}press Enter for next${R}${D}  (hint · skip · q · ?)${R}  "
+      else
+        printf "  ${B}press Enter for next${R}${D}  (${msg})${R}  "
+      fi
+      first=0
+    else
+      printf "  ${B}press Enter for next${R}  "
+    fi
     local input; read -r input
     _is_meta "$input"
     local rc=$?
     [ $rc -eq 0 ] && continue    # meta handled, re-show pause
     [ $rc -eq 2 ] && return 1    # skip
-    return 0                      # Enter or any other = advance
+    return 0                      # anything else (including Enter) = advance
   done
 }
 
@@ -255,7 +270,7 @@ init_mission() {
       printf "\n  Fast-forwarding ...\n"
     fi
   else
-    printf "  ${D}Press Enter to begin (? for commands)${R}  "
+    printf "  ${B}↵${R}${D} start  ·  ? commands${R}  "
     local ans; read -r ans
     _is_meta "$ans" 2>/dev/null || true
     printf "\n"
@@ -394,7 +409,7 @@ try_match() {
     printf "  ${GR}✓  Correct${R}  ${D}— output contains '${expected}'${R}\n"
   else
     printf "  ${YL}~  Expected output to contain '${expected}'${R}\n"
-    printf "  ${D}   Run it again, or press Enter to move on${R}\n"
+    printf "  ${D}   Run it again, or press Enter for next to move on${R}\n"
     ERRORS=$((ERRORS + 1)); _save_state
   fi
   printf "\n"
@@ -412,7 +427,7 @@ checkpoint() {
   clear; _compact_header
   printf "  ${MG}${B}?  Checkpoint${R}\n\n"
   printf "  ${MG}%s${R}\n\n" "$1"
-  _read_pause "Think, then press Enter to reveal the answer (? for commands)"
+  _read_pause "to reveal answer"
   printf "\n  ${GR}${B}Answer${R}\n\n"
   while IFS= read -r line; do printf "  ${GR}  %s${R}\n" "$line"; done <<< "$2"
   printf "\n"
