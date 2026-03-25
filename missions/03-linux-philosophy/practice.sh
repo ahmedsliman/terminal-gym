@@ -7,7 +7,7 @@ COURSE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 _PRACTICE_PATH="${BASH_SOURCE[0]}"
 source "${COURSE_ROOT}/lib/course.sh"
 
-init_mission "03" "Linux Philosophy" 10
+init_mission "03" "Linux Philosophy" 9
 
 # =============================================================================
 step "Do one thing well"

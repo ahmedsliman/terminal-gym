@@ -6,7 +6,7 @@ COURSE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 _PRACTICE_PATH="${BASH_SOURCE[0]}"
 source "${COURSE_ROOT}/lib/course.sh"
 
-init_mission "12" "Archive & Compression" 5
+init_mission "12" "Archive & Compression" 1
 
 step "Coming soon"
 explain "This practice session is not yet written.

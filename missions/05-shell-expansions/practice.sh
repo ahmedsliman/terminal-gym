@@ -10,7 +10,7 @@ source "${COURSE_ROOT}/lib/course.sh"
 SCRATCH="/tmp/mission05"
 mkdir -p "$SCRATCH"
 
-init_mission "05" "Shell Expansions" 10
+init_mission "05" "Shell Expansions" 9
 
 # =============================================================================
 step "Expansion — bash rewrites your command before running it"

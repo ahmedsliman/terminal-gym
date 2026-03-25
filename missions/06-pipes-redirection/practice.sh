@@ -10,7 +10,7 @@ source "${COURSE_ROOT}/lib/course.sh"
 SCRATCH="/tmp/mission06"
 mkdir -p "$SCRATCH"
 
-init_mission "06" "Pipes & Redirection" 10
+init_mission "06" "Pipes & Redirection" 9
 
 # =============================================================================
 step "stdin, stdout, stderr — three streams"

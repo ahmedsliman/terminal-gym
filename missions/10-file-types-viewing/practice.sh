@@ -10,7 +10,7 @@ source "${COURSE_ROOT}/lib/course.sh"
 SCRATCH="/tmp/mission10"
 mkdir -p "$SCRATCH"
 
-init_mission "10" "File Types & Viewing" 10
+init_mission "10" "File Types & Viewing" 9
 
 # =============================================================================
 step "ls -l — reading the file type character"

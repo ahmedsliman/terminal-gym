@@ -10,7 +10,7 @@ source "${COURSE_ROOT}/lib/course.sh"
 SCRATCH="/tmp/mission08"
 mkdir -p "$SCRATCH"
 
-init_mission "08" "File Management" 10
+init_mission "08" "File Management" 9
 
 # =============================================================================
 step "mkdir -p — create nested directories"
