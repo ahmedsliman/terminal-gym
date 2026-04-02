@@ -8,6 +8,9 @@ PROJECTS_DIR  := projects
 PROGRESS_FILE := progress.md
 LAB_DIR       := lab
 
+# Panel mode — set to 0 to use classic UI
+export USE_PANELS ?= 1
+
 MISSION_DIRS  := $(sort $(wildcard $(MISSIONS_DIR)/*/))
 TOTAL         := $(words $(MISSION_DIRS))
 PAGER         := $(shell command -v bat 2>/dev/null || command -v less 2>/dev/null || echo cat)
@@ -75,7 +78,7 @@ start:
 	@printf "      ${D}Each mission:  read brief → practice in shell → mark done${R}\n"
 	@printf "\n"
 	@printf "      Press $(B)Enter$(R) to begin Mission 01 practice ...\n"
-	@read _ignored
+	@read -r _ignored || true
 	@$(MAKE) --no-print-directory practice N=01
 
 # ── status ────────────────────────────────────────────────────────────────────

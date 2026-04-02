@@ -8,6 +8,80 @@ cd terminal-gym
 make start
 ```
 
+## Three-Panel TUI
+
+The default interface features a modern three-panel layout:
+
+```
+┌──────────────┬─────────────────────────────────────────┐
+│  MISSIONS    │  EXERCISES — 01 Basic Commands          │
+│              │                                         │
+│ ▶ 01 Basic   │  Work through each exercise...          │
+│   ▸ Concept  │                                         │
+│   ▸ Goals    │  ## Exercise 1: Explore Environment     │
+│ ▶ 02 Text    │  **Goal:** Know who you are...          │
+│ ▶ 03 Linux   │                                         │
+│ ▶ 04 Terminal│                                         │
+│ ...          │                                         │
+├──────────────┴─────────────────────────────────────────┤
+│  TERMINAL                                              │
+│  Step 1/12 · Basic Commands                            │
+│  ▌ whoami — who are you?                               │
+│  ● ○ ○ ○ ○ ○ ○ ○ ○ ○ ○ ○                              │
+│                                                        │
+│  $ whoami                                              │
+│  ahmedsoliman                                          │
+│  ✓ exit 0 — success                                    │
+├────────────────────────────────────────────────────────┤
+│ [TERMINAL] │ Tab:switch j/k:nav g/G:top/bot ...       │
+└────────────────────────────────────────────────────────┘
+```
+
+### Keyboard Shortcuts
+
+**Panel Navigation:**
+| Key | Action |
+|-----|--------|
+| `Tab` / `Shift+Tab` | Cycle focus forward/backward |
+| `1` / `2` / `3` | Jump to tree / exercises / terminal |
+| `Esc` | Focus terminal panel |
+
+**Tree Panel:**
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `↑` / `↓` | Move cursor down/up |
+| `g` / `G` | Jump to top/bottom |
+| `Enter` / `Space` | Select / toggle expand |
+| `+` / `-` | Expand all / collapse all |
+| `→` / `←` | Expand / collapse current node |
+| `Ctrl+d` / `Ctrl+u` | Half-page down/up |
+| `Ctrl+f` / `Ctrl+b` | Full-page down/up |
+| `PgUp` / `PgDn` | Scroll one page |
+
+**Exercises Panel:**
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `↑` / `↓` | Scroll down/up |
+| `g` / `G` | Jump to top/bottom |
+| `Ctrl+d` / `Ctrl+u` | Half-page scroll |
+
+**Terminal Panel:**
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Navigate command history |
+| `Ctrl+l` | Clear terminal |
+
+**Global:**
+| Key | Action |
+|-----|--------|
+| `/` | Search tree |
+| `n` / `N` | Next/previous search result |
+| `r` | Refresh |
+| `?` | Show help overlay |
+| `q` | Quit session |
+
+> To use classic mode instead: `USE_PANELS=0 make start`
+
 ## Commands
 
 ```
