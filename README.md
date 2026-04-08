@@ -2,14 +2,6 @@
 
 Learn Linux by doing — 19 hands-on missions in a 3-panel terminal UI.
 
-## Features
-
-- **3-panel TUI**: collapsible missions tree, paginated exercises, live bash terminal
-- **19 missions**: basic commands → shell scripting, grouped into 5 sections
-- **4 real-world projects** to apply what you've learned
-- **Progress tracking** with per-exercise grading
-- Vim-style keyboard navigation throughout
-
 ## Quick Start
 
 ```bash
@@ -18,47 +10,7 @@ cd terminal-gym
 make start
 ```
 
-**Requires:** Linux, bash, make, python3, vim
-
-## Layout
-
-```
-┌─────────────┬──────────────────────────────────┐
-│  MISSIONS   │  EXERCISES (paginated)            │
-│  ▼ Found..  │                                   │
-│    ● 01 ..  ├──────────────────────────────────┤
-│    02 ..    │  TERMINAL  (real bash on PTY)     │
-│  ▶ Shell .. └──────────────────────────────────┘
-└─────────────       [ status bar ]
-```
-
-## Keyboard Shortcuts
-
-### Global
-
-| Key | Action |
-|-----|--------|
-| `Ctrl-C` / `Ctrl-Q` | Quit |
-| `1` / `2` / `3` | Jump to Missions / Exercises / Terminal |
-| `Tab` / `Shift-Tab` | Cycle panel focus |
-| `Ctrl-X` | Toggle between terminal and last nav panel |
-| `Alt+1` / `Alt+2` | Switch to Missions / Exercises from terminal |
-
-### Missions Panel
-
-| Key | Action |
-|-----|--------|
-| `↑` / `↓` or `k` / `j` | Move cursor |
-| `←` / `→` or `h` / `l` | Collapse / expand section |
-| `Enter` | Open mission · toggle section |
-
-### Exercises Panel
-
-| Key | Action |
-|-----|--------|
-| `←` / `→` or `[` / `]` | Previous / next page |
-| `↑` / `↓` or `k` / `j` | Scroll page |
-| `PgUp` / `PgDn` | Scroll 5 lines |
+**Requires:** Linux, bash, make, python3
 
 ## Missions
 
