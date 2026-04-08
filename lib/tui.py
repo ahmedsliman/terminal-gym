@@ -56,7 +56,14 @@ import time
 import tty
 from pathlib import Path
 
-import pyte
+try:
+    # Prefer the built-in minimal screen buffer (zero external deps)
+    from screen import ScreenBuffer as _Screen, ByteStream as _ByteStream
+except ImportError:
+    # Fall back to pyte if screen.py is somehow unavailable
+    import pyte
+    _Screen    = pyte.Screen
+    _ByteStream = pyte.ByteStream
 
 
 # ─── Catppuccin Mocha palette (true-color) ────────────────────────────────────
@@ -96,7 +103,7 @@ SECTIONS = [
     ("Shell Power",  ["05", "06", "07"]),
     ("Filesystem",   ["08", "09", "10", "11"]),
     ("System",       ["12", "13", "14"]),
-    ("Advanced",     ["15", "16", "17"]),
+    ("Advanced",     ["15", "16", "17", "18", "19"]),
 ]
 
 # ─── Low-level output ─────────────────────────────────────────────────────────
@@ -368,8 +375,9 @@ class Tui:
         self.page_idx    = 0    # current exercise page within the active mission
         self.page_scroll = 0    # vertical scroll within a single page
 
-        self.focus          = 'terminal'
-        self.last_nav_focus = 'exercises'
+        self.focus          = 'tree'        # start in nav mode so user sees missions first
+        self.last_nav_focus = 'tree'
+        self.shell_active   = False         # True = keystrokes go to bash (SHELL MODE)
 
         # Shell / PTY state
         self.master_fd = None
@@ -390,6 +398,9 @@ class Tui:
         # Flash message (overlays footer hints for a short duration)
         self.message       = ''
         self.message_until = 0.0
+
+        # Quit confirmation — first Ctrl-Q/Ctrl-C arms it, second confirms
+        self.quit_pending  = False
 
         # Command grading
         self.histfile     = None
@@ -462,8 +473,8 @@ class Tui:
             os.write(master, b'set -o history; clear\n')
         except OSError:
             pass
-        self.screen = pyte.Screen(self.tp_cols, self.tp_rows)
-        self.stream = pyte.ByteStream(self.screen)
+        self.screen = _Screen(self.tp_cols, self.tp_rows)
+        self.stream = _ByteStream(self.screen)
 
     def resize_shell(self):
         if self.master_fd is None:
@@ -587,6 +598,13 @@ class Tui:
             done += d; total += t
         return done, total
 
+    def _overall_progress(self):
+        """Count missions where all exercises are completed."""
+        return sum(
+            1 for m in self.missions
+            if (p := self.mission_progress(m))[0] >= p[1] > 0
+        )
+
     # ── State helpers ─────────────────────────────────────────────────────
     def flash(self, msg, secs=2.5):
         self.message       = msg
@@ -597,19 +615,45 @@ class Tui:
         self.focus = panel
         if panel != 'terminal':
             self.last_nav_focus = panel
+            self.shell_active   = False   # leaving terminal always resets to view mode
         self.dirty = True
 
     def _invalidate_tree(self):
         self._tree_flat_cache = None
 
+    def _request_quit(self):
+        """Arm the Y/N quit prompt."""
+        self.quit_pending = True
+        self.dirty = True
+
+    def _cancel_quit(self):
+        if self.quit_pending:
+            self.quit_pending = False
+            self.dirty = True
+
     # ── Input handling ────────────────────────────────────────────────────
-    def _handle_shell_mode(self, data):
-        """Dispatch a raw byte string received while in SHELL MODE."""
+    def _handle_terminal_view_mode(self, data):
+        """Terminal panel focused but shell not active — VIEW MODE."""
         if data == b'\x11':                       # Ctrl-Q — quit TUI
-            raise KeyboardInterrupt
-        if data in (b'\x18', b'\x1b'):            # Ctrl-X / Esc — leave shell
-            self._set_focus(self.last_nav_focus)
-            return
+            self._request_quit(); return
+        self._cancel_quit()
+        if data in (b'\x18', b'\x1b', b'\x1b[Z'):  # Esc / Ctrl-X / Shift-Tab — back to nav
+            self._set_focus(self.last_nav_focus); return
+        if data in (b'\r', b'\n', b'i'):          # Enter / i — activate shell
+            self.shell_active = True; self.dirty = True; return
+        if data == b'\x1b1' or data == b'1':      # Alt+1 / 1 — missions
+            self._set_focus('tree'); return
+        if data == b'\x1b2' or data == b'2':      # Alt+2 / 2 — exercises
+            self._set_focus('exercises'); return
+        if data == b'\t':
+            self._cycle_focus(reverse=False); self.dirty = True; return
+
+    def _handle_shell_mode(self, data):
+        """Terminal panel with shell active — SHELL MODE (keystrokes → bash)."""
+        if data == b'\x11':                       # Ctrl-Q — quit TUI
+            self._request_quit(); return
+        if data in (b'\x18', b'\x1b'):            # Ctrl-X / Esc — back to VIEW MODE
+            self.shell_active = False; self.dirty = True; return
         if data == b'\x1b1':                      # Alt+1 — jump to MISSIONS
             self._set_focus('tree'); return
         if data == b'\x1b2':                      # Alt+2 — jump to EXERCISES
@@ -625,7 +669,8 @@ class Tui:
         """Dispatch a byte string received while in NORMAL MODE."""
         # ── Global ───────────────────────────────────────────────────────
         if data in (b'\x11', b'\x03'):            # Ctrl-Q / Ctrl-C — quit
-            raise KeyboardInterrupt
+            self._request_quit(); return
+        self._cancel_quit()
         if data == b'\x18':                       # Ctrl-X — enter shell
             self._set_focus('terminal'); return
         if data == b'1':
@@ -662,8 +707,16 @@ class Tui:
             self._on_enter(); self.dirty = True; return
 
     def handle_input(self, data):
+        if self.quit_pending:
+            if data in (b'y', b'Y'):
+                raise KeyboardInterrupt
+            self._cancel_quit()
+            return
         if self.focus == 'terminal':
-            self._handle_shell_mode(data)
+            if self.shell_active:
+                self._handle_shell_mode(data)
+            else:
+                self._handle_terminal_view_mode(data)
         else:
             self._handle_nav_mode(data)
 
@@ -802,18 +855,37 @@ class Tui:
     def _draw_borders(self):
         rows = self.term_rows
         cols = self.term_cols
+        foc  = self.focus
+
+        # Accent color for each panel's signature border
+        tree_c = PANEL_COLORS['tree']      if foc == 'tree'      else C_DIM
+        ex_c   = PANEL_COLORS['exercises'] if foc == 'exercises' else C_DIM
+        term_c = PANEL_COLORS['terminal']  if foc == 'terminal'  else C_DIM
+
+        # Top and bottom outer frame (always dim)
         w(C_DIM)
-        # Outer box
         goto(1, 1);         w(BX['tl'] + BX['h'] * (cols - 2) + BX['tr'])
         goto(rows - 1, 1);  w(BX['bl'] + BX['h'] * (cols - 2) + BX['br'])
-        for r in range(2, rows - 1):
-            goto(r, 1);           w(BX['v'])
-            goto(r, self.LEFT_W); w(BX['v'])
-            goto(r, cols);        w(BX['v'])
-        # Horizontal divider between EXERCISES and TERMINAL
-        goto(self.mid_h, self.LEFT_W)
-        w(BX['tl_split'] + BX['h'] * (cols - self.LEFT_W - 1) + BX['tr_split'])
         w(RESET)
+
+        # Vertical borders — per row, each edge uses the accent of its panel:
+        #   col 1       : left outer  → tree panel (always)
+        #   col LEFT_W  : inner divider → tree above mid_h, terminal below
+        #   col cols    : right outer  → exercises above mid_h, terminal below
+        for r in range(2, rows - 1):
+            left_c  = tree_c
+            inner_c = tree_c  if r < self.mid_h else term_c
+            right_c = ex_c    if r < self.mid_h else term_c
+            goto(r, 1);           w(f'{left_c}{BX["v"]}{RESET}')
+            goto(r, self.LEFT_W); w(f'{inner_c}{BX["v"]}{RESET}')
+            goto(r, cols);        w(f'{right_c}{BX["v"]}{RESET}')
+
+        # Horizontal divider between EXERCISES and TERMINAL
+        h_c = ex_c if foc == 'exercises' else term_c
+        goto(self.mid_h, self.LEFT_W)
+        w(f'{C_DIM}{BX["tl_split"]}{h_c}'
+          f'{BX["h"] * (cols - self.LEFT_W - 1)}'
+          f'{C_DIM}{BX["tr_split"]}{RESET}')
 
     # ── Rendering: missions tree ──────────────────────────────────────────
     def _draw_missions(self):
@@ -821,10 +893,7 @@ class Tui:
         focused = self.focus == 'tree'
 
         # Header: aggregate progress counter
-        done_cnt = sum(
-            1 for m in self.missions
-            if (p := self.mission_progress(m))[0] >= p[1] > 0
-        )
+        done_cnt = self._overall_progress()
         self._hbar(2, 2, iw, 'MISSIONS', f'{done_cnt}/{len(self.missions)}', 'tree')
 
         flat        = self._tree_flat()
@@ -1003,8 +1072,7 @@ class Tui:
         m             = self.missions[self.mission_idx]
         done, total   = self.mission_progress(m)
         grade_str     = f'{done}/{total} tasks' if total else ''
-        in_shell      = self.focus == 'terminal'
-        title         = 'SHELL MODE' if in_shell else 'TERMINAL'
+        title = 'SHELL MODE' if (self.focus == 'terminal' and self.shell_active) else 'TERMINAL'
         self._hbar(self.mid_h, c1 + 1, iw, title, grade_str, 'terminal')
 
         # PTY content
@@ -1066,45 +1134,73 @@ class Tui:
         w(f'{BG_MANTLE}{" " * cols}{RESET}')
         goto(rows, 2)
 
-        # Mode badge
-        if self.focus == 'terminal':
+        # Mode badge — three states
+        in_terminal = self.focus == 'terminal'
+        if in_terminal and self.shell_active:
             mode_label = 'SHELL MODE'
+            mode_color = C_GREEN
+        elif in_terminal:
+            mode_label = 'TERMINAL'
             mode_color = C_GREEN
         else:
             mode_label = 'NORMAL MODE'
             mode_color = C_MAUVE
 
-        # Hint text — panel-specific in NORMAL MODE, fixed in SHELL MODE
+        # Hint text
         now = time.time()
-        if self.message and now < self.message_until:
+        if self.quit_pending:
+            hint = (
+                f'  {BOLD}{C_RED}Quit terminal-gym?  '
+                f'{RESET}{BG_MANTLE}{BOLD}{C_GREEN}[Y]{RESET}{BG_MANTLE}{C_DIM} yes  '
+                f'{BOLD}{C_DIM}[N]{RESET}{BG_MANTLE}{C_DIM} / any key to cancel{RESET}'
+            )
+        elif self.message and now < self.message_until:
             hint = f'  {BOLD}{C_YELLOW}{self.message}{RESET}{BG_MANTLE}'
         else:
             self.message = ''
-            if self.focus == 'terminal':
+            if in_terminal and self.shell_active:
                 hint = (
-                    f'{C_DIM}  Esc/Ctrl-X: leave shell'
-                    f'  ·  Ctrl-Q: quit'
-                    f'  ·  exit: end shell session{RESET}'
+                    f'  {C_PEACH}← Esc / Ctrl-X  view mode{RESET}{BG_MANTLE}'
+                    f'{C_DIM}  ·  Ctrl-Q: quit'
+                    f'  ·  exit: end session{RESET}'
+                )
+            elif in_terminal:
+                hint = (
+                    f'  {C_PEACH}← i / Enter  to type{RESET}{BG_MANTLE}'
+                    f'{C_DIM}  ·  Esc: back to nav'
+                    f'  ·  Ctrl-Q: quit{RESET}'
                 )
             elif self.focus == 'tree':
                 hint = (
-                    f'{C_DIM}  ↑↓/jk: navigate'
-                    f'  ·  Enter: open / toggle'
+                    f'  {C_PEACH}← 3 / Ctrl-X  for shell{RESET}{BG_MANTLE}'
+                    f'{C_DIM}  ·  ↑↓/jk: navigate'
+                    f'  ·  Enter: open/toggle'
                     f'  ·  ←→: collapse/expand'
-                    f'  ·  Ctrl-X/3: shell'
                     f'  ·  Ctrl-Q: quit{RESET}'
                 )
             else:   # exercises
                 hint = (
-                    f'{C_DIM}  ←→/[]: page'
+                    f'  {C_PEACH}← 3 / Ctrl-X  for shell{RESET}{BG_MANTLE}'
+                    f'{C_DIM}  ·  ←→/[]: page'
                     f'  ·  ↑↓/jk: scroll'
                     f'  ·  1: missions'
-                    f'  ·  Ctrl-X/3: shell'
                     f'  ·  Ctrl-Q: quit{RESET}'
                 )
 
         badge = f'{BG_MANTLE}{BOLD}{mode_color} [{mode_label}]{RESET}{BG_MANTLE}'
         w(f'{badge}{hint}')
+
+        # Right-aligned overall progress bar: ████░░░░ 5/17
+        done_cnt = self._overall_progress()
+        total    = len(self.missions)
+        bar_len  = 10
+        filled   = int(round(bar_len * done_cnt / max(1, total)))
+        bar      = f'{C_GREEN}{"█" * filled}{C_DIM}{"░" * (bar_len - filled)}{RESET}'
+        counter  = f' {done_cnt}/{total} '
+        label    = f'{BG_MANTLE}{bar}{C_DIM}{counter}{RESET}'
+        label_w  = bar_len + len(counter)
+        goto(rows, cols - label_w)
+        w(label)
 
     # ── Rendering: cursor placement ───────────────────────────────────────
     def _position_cursor(self):
@@ -1195,8 +1291,8 @@ class Tui:
 
     def _dispatch_input(self, data):
         """Parse raw stdin bytes and deliver complete sequences to handle_input."""
-        if self.focus == 'terminal':
-            # In SHELL MODE: pass the entire buffer as-is; handle_input inspects it.
+        if self.focus == 'terminal' and self.shell_active:
+            # In SHELL MODE: pass raw bytes directly to bash via handle_input.
             self.handle_input(data)
             return
 

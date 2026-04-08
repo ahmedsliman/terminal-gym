@@ -1,11 +1,11 @@
 # terminal-gym
 
-Learn Linux by doing — 17 hands-on missions in a 3-panel terminal UI.
+Learn Linux by doing — 19 hands-on missions in a 3-panel terminal UI.
 
 ## Features
 
 - **3-panel TUI**: collapsible missions tree, paginated exercises, live bash terminal
-- **17 missions**: basic commands → shell scripting, grouped into 5 sections
+- **19 missions**: basic commands → shell scripting, grouped into 5 sections
 - **4 real-world projects** to apply what you've learned
 - **Progress tracking** with per-exercise grading
 - Vim-style keyboard navigation throughout
@@ -68,7 +68,7 @@ make start
 | **Shell Power** | 05 Shell Expansions · 06 Pipes & Redirection · 07 Users & Groups |
 | **Filesystem** | 08 File Management · 09 Filesystem Hierarchy · 10 File Types & Viewing · 11 Finding Files |
 | **System** | 12 Archive & Compression · 13 Permissions · 14 Process Management |
-| **Advanced** | 15 Package Management · 16 Remote Servers & SSH · 17 Shell Scripting |
+| **Advanced** | 15 Package Management · 16 Remote Servers & SSH · 17 Shell Scripting · 18 awk · 19 jq |
 
 ## Other Commands
 

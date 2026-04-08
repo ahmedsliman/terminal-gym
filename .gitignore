@@ -17,6 +17,17 @@ lab/*
 # ── Claude Code internal files ────────────────────────────────────────────────
 .claude/
 
+# ── Python cache ──────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+
+# ── Scratch / prototype files ─────────────────────────────────────────────────
+lib/interactive-pty.py
+lib/panel-shell.py
+lib/pty-shell.py
+lib/real-shell.py
+lib/tui-test.py
+
 # ── OS & editor noise ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
@@ -27,3 +38,5 @@ Thumbs.db
 *~
 prompt.md
 plan.md
+analysis.md
+ux_notes.md
