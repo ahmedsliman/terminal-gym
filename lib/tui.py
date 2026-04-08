@@ -1068,12 +1068,21 @@ class Tui:
         c1 = self.LEFT_W + 1
         iw = self.term_cols - c1 - 1
 
-        # Header bar sits on the horizontal divider row
-        m             = self.missions[self.mission_idx]
-        done, total   = self.mission_progress(m)
-        grade_str     = f'{done}/{total} tasks' if total else ''
-        title = 'SHELL MODE' if (self.focus == 'terminal' and self.shell_active) else 'TERMINAL'
-        self._hbar(self.mid_h, c1 + 1, iw, title, grade_str, 'terminal')
+        # Header bar — make current mode and how to switch unmistakably clear
+        m            = self.missions[self.mission_idx]
+        done, total  = self.mission_progress(m)
+        grade_str    = f'{done}/{total}' if total else ''
+        focused      = self.focus == 'terminal'
+        if focused and self.shell_active:
+            title     = 'SHELL MODE'
+            right_str = f'Esc · Ctrl-X → view mode    {grade_str}'
+        elif focused:
+            title     = 'VIEW MODE'
+            right_str = f'i · Enter → activate shell    {grade_str}'
+        else:
+            title     = 'TERMINAL'
+            right_str = grade_str
+        self._hbar(self.mid_h, c1 + 1, iw, title, right_str, 'terminal')
 
         # PTY content
         self._panel_clear(self.tp_row, self.tp_col + 1, self.tp_rows, self.tp_cols)
@@ -1160,15 +1169,11 @@ class Tui:
             self.message = ''
             if in_terminal and self.shell_active:
                 hint = (
-                    f'  {C_PEACH}← Esc / Ctrl-X  view mode{RESET}{BG_MANTLE}'
-                    f'{C_DIM}  ·  Ctrl-Q: quit'
-                    f'  ·  exit: end session{RESET}'
+                    f'  {C_DIM}1: missions  ·  2: exercises  ·  Ctrl-Q: quit{RESET}'
                 )
             elif in_terminal:
                 hint = (
-                    f'  {C_PEACH}← i / Enter  to type{RESET}{BG_MANTLE}'
-                    f'{C_DIM}  ·  Esc: back to nav'
-                    f'  ·  Ctrl-Q: quit{RESET}'
+                    f'  {C_DIM}1: missions  ·  2: exercises  ·  Esc: back to nav  ·  Ctrl-Q: quit{RESET}'
                 )
             elif self.focus == 'tree':
                 hint = (
