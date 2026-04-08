@@ -1,32 +1,85 @@
 # terminal-gym
 
-Learn Linux by doing — 19 hands-on missions in a 3-panel terminal UI.
+> Learn Linux by doing — hands-on missions in a 3-panel terminal UI.
+
+```
+┌─ MISSIONS ──────┬─ EXERCISES ──────────────────────────────────┐
+│ ▼ Foundations   │  Mission 06 · Pipes & Redirection  page 2/4  │
+│   ✓ 01 basics   │                                               │
+│   ✓ 02 vim      │  ## Exercise 3: Chaining Pipes               │
+│   ✓ 03 philos.. │                                               │
+│   ✓ 04 shell    │  Combine ps, grep, and awk to list only       │
+│ ▼ Shell Power   │  running processes owned by your user.        │
+│   ✓ 05 expand.. │                                               │
+│   ● 06 pipes    ├───────────────────────────────────────────────┤
+│   · 07 users    │  TERMINAL                                     │
+│ ▶ Filesystem    │  $ ps aux | grep $USER | awk '{print $11}'   │
+│ ▶ System        │  /bin/bash                                    │
+│ ▶ Advanced      │  /usr/bin/python3                             │
+└─────────────────┴───────────────────────────────────────────────┘
+ [NORMAL MODE]  ← 3 / Ctrl-X  for shell  · ↑↓/jk: navigate    4/19
+```
+
+---
+
+## What is this?
+
+terminal-gym is a self-contained Linux training environment that runs entirely in your terminal. Each mission teaches a real skill through a concept brief, paginated exercises, and a live bash shell — all in one view. No browser, no cloud, no account required.
+
+---
 
 ## Quick Start
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/ahmedsliman/terminal-gym
 cd terminal-gym
 make start
 ```
 
-**Requires:** Linux, bash, make, python3
+**Requires:** Linux · bash · make · python3
+
+---
 
 ## Missions
 
-| Section | Missions |
-|---------|---------|
-| **Foundations** | 01 Basic Commands · 02 Text Files & Vim · 03 Linux Philosophy · 04 Terminal & Shell |
-| **Shell Power** | 05 Shell Expansions · 06 Pipes & Redirection · 07 Users & Groups |
-| **Filesystem** | 08 File Management · 09 Filesystem Hierarchy · 10 File Types & Viewing · 11 Finding Files |
-| **System** | 12 Archive & Compression · 13 Permissions · 14 Process Management |
-| **Advanced** | 15 Package Management · 16 Remote Servers & SSH · 17 Shell Scripting · 18 awk · 19 jq |
+19 missions across 5 sections, each with a concept brief, hands-on exercises, worked solutions, and an interactive practice session.
 
-## Other Commands
+| # | Section | Topics |
+|---|---------|--------|
+| 01–04 | **Foundations** | Basic commands · Text files & Vim · Linux philosophy · Terminal & shell |
+| 05–07 | **Shell Power** | Shell expansions · Pipes & redirection · Users & groups |
+| 08–11 | **Filesystem** | File management · Filesystem hierarchy · File types · Finding files |
+| 12–14 | **System** | Archive & compression · Permissions · Process management |
+| 15–19 | **Advanced** | Package management · SSH · Shell scripting · awk · jq |
+
+---
+
+## Projects
+
+Four real-world projects to apply what you've learned end-to-end:
+
+| # | Project |
+|---|---------|
+| 1 | **Log Analyzer** — parse and summarise web server access logs |
+| 2 | **Backup Script** — incremental backups with rotation and logging |
+| 3 | **User Audit** — scan system accounts and report anomalies |
+| 4 | **Dotfiles** — manage and version-control your shell config |
 
 ```bash
-make status       # visual progress board
-make next         # open next unfinished mission
-make done N=03    # mark mission 03 complete
-make project N=1  # open real-world project
+make project N=1   # open a project
+```
+
+---
+
+## Commands
+
+```bash
+make start             # launch the TUI
+make status            # visual progress board in the terminal
+make next              # jump to the next unfinished mission
+make done   N=06       # mark mission 06 complete
+make mission    N=06   # read the concept brief
+make exercises  N=06   # open the exercises
+make solution   N=06   # view worked solutions
+make practice   N=06   # run the interactive practice session
 ```
