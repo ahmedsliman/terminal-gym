@@ -1,113 +1,80 @@
 # terminal-gym
 
-Learn Linux by doing. 17 hands-on missions, straight from your terminal.
+Learn Linux by doing — 17 hands-on missions in a 3-panel terminal UI.
+
+## Features
+
+- **3-panel TUI**: collapsible missions tree, paginated exercises, live bash terminal
+- **17 missions**: basic commands → shell scripting, grouped into 5 sections
+- **4 real-world projects** to apply what you've learned
+- **Progress tracking** with per-exercise grading
+- Vim-style keyboard navigation throughout
+
+## Quick Start
 
 ```bash
-git clone https://github.com/ahmedsliman/terminal-gym.git
+git clone <repo-url>
 cd terminal-gym
 make start
 ```
 
-## Three-Panel TUI
+**Requires:** Linux, bash, make, python3, vim
 
-The default interface features a modern three-panel layout:
-
-```
-┌──────────────┬─────────────────────────────────────────┐
-│  MISSIONS    │  EXERCISES — 01 Basic Commands          │
-│              │                                         │
-│ ▶ 01 Basic   │  Work through each exercise...          │
-│   ▸ Concept  │                                         │
-│   ▸ Goals    │  ## Exercise 1: Explore Environment     │
-│ ▶ 02 Text    │  **Goal:** Know who you are...          │
-│ ▶ 03 Linux   │                                         │
-│ ▶ 04 Terminal│                                         │
-│ ...          │                                         │
-├──────────────┴─────────────────────────────────────────┤
-│  TERMINAL                                              │
-│  Step 1/12 · Basic Commands                            │
-│  ▌ whoami — who are you?                               │
-│  ● ○ ○ ○ ○ ○ ○ ○ ○ ○ ○ ○                              │
-│                                                        │
-│  $ whoami                                              │
-│  ahmedsoliman                                          │
-│  ✓ exit 0 — success                                    │
-├────────────────────────────────────────────────────────┤
-│ [TERMINAL] │ Tab:switch j/k:nav g/G:top/bot ...       │
-└────────────────────────────────────────────────────────┘
-```
-
-### Keyboard Shortcuts
-
-**Panel Navigation:**
-| Key | Action |
-|-----|--------|
-| `Tab` / `Shift+Tab` | Cycle focus forward/backward |
-| `1` / `2` / `3` | Jump to tree / exercises / terminal |
-| `Esc` | Focus terminal panel |
-
-**Tree Panel:**
-| Key | Action |
-|-----|--------|
-| `j` / `k` / `↑` / `↓` | Move cursor down/up |
-| `g` / `G` | Jump to top/bottom |
-| `Enter` / `Space` | Select / toggle expand |
-| `+` / `-` | Expand all / collapse all |
-| `→` / `←` | Expand / collapse current node |
-| `Ctrl+d` / `Ctrl+u` | Half-page down/up |
-| `Ctrl+f` / `Ctrl+b` | Full-page down/up |
-| `PgUp` / `PgDn` | Scroll one page |
-
-**Exercises Panel:**
-| Key | Action |
-|-----|--------|
-| `j` / `k` / `↑` / `↓` | Scroll down/up |
-| `g` / `G` | Jump to top/bottom |
-| `Ctrl+d` / `Ctrl+u` | Half-page scroll |
-
-**Terminal Panel:**
-| Key | Action |
-|-----|--------|
-| `↑` / `↓` | Navigate command history |
-| `Ctrl+l` | Clear terminal |
-
-**Global:**
-| Key | Action |
-|-----|--------|
-| `/` | Search tree |
-| `n` / `N` | Next/previous search result |
-| `r` | Refresh |
-| `?` | Show help overlay |
-| `q` | Quit session |
-
-> To use classic mode instead: `USE_PANELS=0 make start`
-
-## Commands
+## Layout
 
 ```
-make start              Begin at mission 01
-make next               Continue where you left off
-make status             See your progress
-make practice  N=03     Interactive session
-make mission   N=03     Read the brief
-make exercises N=03     Open the exercises
-make done      N=03     Mark complete
+┌─────────────┬──────────────────────────────────┐
+│  MISSIONS   │  EXERCISES (paginated)            │
+│  ▼ Found..  │                                   │
+│    ● 01 ..  ├──────────────────────────────────┤
+│    02 ..    │  TERMINAL  (real bash on PTY)     │
+│  ▶ Shell .. └──────────────────────────────────┘
+└─────────────       [ status bar ]
 ```
 
-> Inside a session, type `?` for in-session commands (hint · skip · goto · quit).
+## Keyboard Shortcuts
+
+### Global
+
+| Key | Action |
+|-----|--------|
+| `Ctrl-C` / `Ctrl-Q` | Quit |
+| `1` / `2` / `3` | Jump to Missions / Exercises / Terminal |
+| `Tab` / `Shift-Tab` | Cycle panel focus |
+| `Ctrl-X` | Toggle between terminal and last nav panel |
+| `Alt+1` / `Alt+2` | Switch to Missions / Exercises from terminal |
+
+### Missions Panel
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` or `k` / `j` | Move cursor |
+| `←` / `→` or `h` / `l` | Collapse / expand section |
+| `Enter` | Open mission · toggle section |
+
+### Exercises Panel
+
+| Key | Action |
+|-----|--------|
+| `←` / `→` or `[` / `]` | Previous / next page |
+| `↑` / `↓` or `k` / `j` | Scroll page |
+| `PgUp` / `PgDn` | Scroll 5 lines |
 
 ## Missions
 
-```
-01  Basic Commands          10  File Types & Viewing
-02  Text Files & Vim        11  Finding Files
-03  Linux Philosophy        12  Archive & Compression
-04  Terminal & Shell        13  Ownership & Permissions
-05  Shell Expansions        14  Process Management
-06  Pipes & Redirection     15  Package Management
-07  Users & Groups          16  Remote Servers & SSH
-08  File Management         17  Shell Scripting
-09  Filesystem Hierarchy
-```
+| Section | Missions |
+|---------|---------|
+| **Foundations** | 01 Basic Commands · 02 Text Files & Vim · 03 Linux Philosophy · 04 Terminal & Shell |
+| **Shell Power** | 05 Shell Expansions · 06 Pipes & Redirection · 07 Users & Groups |
+| **Filesystem** | 08 File Management · 09 Filesystem Hierarchy · 10 File Types & Viewing · 11 Finding Files |
+| **System** | 12 Archive & Compression · 13 Permissions · 14 Process Management |
+| **Advanced** | 15 Package Management · 16 Remote Servers & SSH · 17 Shell Scripting |
 
-**Requirements:** Linux · `make` · `bash` · `vim`
+## Other Commands
+
+```bash
+make status       # visual progress board
+make next         # open next unfinished mission
+make done N=03    # mark mission 03 complete
+make project N=1  # open real-world project
+```

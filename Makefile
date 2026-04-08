@@ -27,7 +27,13 @@ MG := \033[35m
 CY := \033[36m
 
 .PHONY: help start status mission exercises practice review next hint check solution done \
-        project lab _require_n _pad
+        project lab tui _require_n _pad
+
+# ── tui ──────────────────────────────────────────────────────────────────────
+# Real 3-panel TUI with an actual bash PTY shell as the terminal panel.
+tui:
+	@N_ARG=$${N:-01}; \
+	python3 lib/tui.py --missions-dir $(MISSIONS_DIR) --start $$N_ARG
 
 # ── help ─────────────────────────────────────────────────────────────────────
 
@@ -63,23 +69,7 @@ help:
 # ── start ─────────────────────────────────────────────────────────────────────
 
 start:
-	@clear
-	@printf "\n"
-	@printf "$(B)$(CY)      ██╗     ██╗███╗   ██╗██╗   ██╗██╗  ██╗$(R)\n"
-	@printf "$(B)$(CY)      ██║     ██║████╗  ██║██║   ██║╚██╗██╔╝$(R)\n"
-	@printf "$(B)$(CY)      ██║     ██║██╔██╗ ██║██║   ██║ ╚███╔╝ $(R)\n"
-	@printf "$(B)$(CY)      ██║     ██║██║╚██╗██║██║   ██║ ██╔██╗ $(R)\n"
-	@printf "$(B)$(CY)      ███████╗██║██║ ╚████║╚██████╔╝██╔╝ ██╗$(R)\n"
-	@printf "$(B)$(CY)      ╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝$(R)\n"
-	@printf "\n"
-	@printf "      $(B)LINUX CLI INTERACTIVE COURSE$(R)\n"
-	@printf "      $(D)17 Missions  ·  4 Projects  ·  Terminal Only$(R)\n"
-	@printf "\n"
-	@printf "      ${D}Each mission:  read brief → practice in shell → mark done${R}\n"
-	@printf "\n"
-	@printf "      Press $(B)Enter$(R) to begin Mission 01 practice ...\n"
-	@read -r _ignored || true
-	@$(MAKE) --no-print-directory practice N=01
+	@$(MAKE) --no-print-directory tui N=01
 
 # ── status ────────────────────────────────────────────────────────────────────
 

@@ -62,6 +62,12 @@ EXERCISES_LINES=()
 # ── Terminal panel state ─────────────────────────────────────────────────────
 TERM_LINES=()
 TERM_LINE_COUNT=0
+_SHELL_SESSION_ACTIVE=0
+_SHELL_PID=0
+
+# ── PTY session state ─────────────────────────────────────────────────────────
+_PTY_CWD_FILE=""
+_YESNO_RESULT=""
 
 # ── Content tracking for partial redraws ───────────────────────────────────
 _TREE_CONTENT_HASH=""
@@ -107,6 +113,7 @@ _panel_init() {
   RIGHT_COLS=$(( TERM_COLS - LEFT_COLS - 1 ))
   _calculate_layout
   _parse_all_missions
+  _init_shell_session
   _PANEL_INITIALIZED=1
   _mark_all_dirty
   return 0
@@ -115,7 +122,7 @@ _panel_init() {
 _calculate_layout() {
   MID_ROW=$(( TERM_ROWS / 2 ))
   TOP_ROWS=$(( MID_ROW - 1 ))
-  BOTTOM_ROWS=$(( TERM_ROWS - MID_ROW - 2 ))
+  BOTTOM_ROWS=$(( TERM_ROWS - MID_ROW - 1 ))
   STATUS_ROW=$TERM_ROWS
 }
 
@@ -141,10 +148,126 @@ _update_layout_for_content() {
     
     MID_ROW=$new_mid
     TOP_ROWS=$((MID_ROW - 1))
-    BOTTOM_ROWS=$((TERM_ROWS - MID_ROW - 2))
+    BOTTOM_ROWS=$((TERM_ROWS - MID_ROW - 1))
   else
     _calculate_layout
   fi
+}
+
+# ── Shell Session Management ─────────────────────────────────────────────────
+
+_init_shell_session() {
+  # Initialize persistent bash session using coproc
+  # This keeps shell state across commands (cd, variables, etc.)
+  if [ "$_SHELL_SESSION_ACTIVE" -eq 1 ]; then
+    return 0
+  fi
+  
+  if [ "$BASH_VERSINFO" -lt 4 ]; then
+    _SHELL_SESSION_ACTIVE=0
+    return 1
+  fi
+  
+  coproc SHELL_SESSION { bash --noprofile --norc 2>&1; }
+  _SHELL_PID=$!
+  _SHELL_SESSION_ACTIVE=1
+
+  return 0
+}
+
+_exec_in_session() {
+  local cmd="$1"
+  
+  if [ "$_SHELL_SESSION_ACTIVE" -ne 1 ]; then
+    # Fallback to eval if session not active
+    eval "$cmd" 2>&1
+    return $?
+  fi
+  
+  # Send command to persistent shell
+  echo "$cmd" >&${SHELL_SESSION[1]}
+  
+  # Read output until we get a marker
+  local output=""
+  local line=""
+  
+  # Send marker command to know when output ends
+  echo "__TERMINAL_GYM_MARKER__" >&${SHELL_SESSION[1]}
+  
+  while IFS= read -r -t 0.5 line <&${SHELL_SESSION[0]}; do
+    if [ "$line" = "__TERMINAL_GYM_MARKER__" ]; then
+      break
+    fi
+    output+="$line"$'\n'
+  done
+  
+  # Remove trailing newline
+  output="${output%$'\n'}"
+  
+  echo "$output"
+  return 0
+}
+
+_terminate_shell_session() {
+  if [ "$_SHELL_SESSION_ACTIVE" -eq 1 ] && [ "$_SHELL_PID" -gt 0 ]; then
+    kill $_SHELL_PID 2>/dev/null
+    _SHELL_SESSION_ACTIVE=0
+  fi
+}
+
+_ensure_pty_state() {
+  if [ -z "$_PTY_CWD_FILE" ] || [ ! -f "$_PTY_CWD_FILE" ]; then
+    _PTY_CWD_FILE=$(mktemp /tmp/tgym_cwd.XXXXXX)
+    printf '%s' "$HOME" > "$_PTY_CWD_FILE"
+  fi
+}
+
+_enter_real_terminal() {
+  local hint="${1:-}" demo_cmd="${2:-}"
+  _ensure_pty_state
+  local initial_cwd
+  initial_cwd=$(cat "$_PTY_CWD_FILE" 2>/dev/null)
+  [ -d "$initial_cwd" ] || initial_cwd="$HOME"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    _term_add "${RD}Error: python3 not found — cannot open real terminal${R}"
+    _panel_draw_all; _read_pause; return
+  fi
+
+  # Switch to alternate screen so panels are preserved underneath
+  tput smcup 2>/dev/null || true
+  clear
+
+  # ── Context header ────────────────────────────────────────────────────────
+  printf "${B}${CY}  terminal-gym${R}  ${D}·  Mission ${MISSION_NUM} · ${MISSION_NAME}${R}\n"
+  if [ -n "$STEP_TITLE" ]; then
+    printf "${B}  Step ${STEP_NUM}/${STEP_TOTAL}${R}  ${D}·  ${STEP_TITLE}${R}\n"
+  fi
+  if [ -n "$demo_cmd" ]; then
+    printf "${D}  demo command:${R}  ${B}${demo_cmd}${R}\n"
+  elif [ -n "$hint" ]; then
+    printf "${YL}  hint: ${hint}${R}\n"
+  fi
+  printf "${D}  ──────────────────────────────────────────────────${R}\n"
+  printf "${D}  type 'exit' or press Ctrl+D to return to the course${R}\n\n"
+
+  local header_rows=6
+  [ -n "$STEP_TITLE" ]  && header_rows=$((header_rows + 1))
+  [ -n "$demo_cmd" ] || [ -n "$hint" ] && header_rows=$((header_rows + 1))
+  local shell_rows=$(( TERM_ROWS - header_rows ))
+  [ "$shell_rows" -lt 3 ] && shell_rows=3
+
+  LINES=$shell_rows \
+  COLUMNS=$TERM_COLS \
+  INITIAL_CWD="$initial_cwd" \
+  STATE_FILE="$_PTY_CWD_FILE" \
+  DEMO_CMD="$demo_cmd" \
+  python3 "${COURSE_ROOT}/lib/real-shell.py"
+
+  # Restore panels
+  tput rmcup 2>/dev/null || true
+  _mark_all_dirty
+  _panel_draw_all
 }
 
 _panel_clear() { tput clear 2>/dev/null || clear; }
@@ -211,15 +334,10 @@ _draw_status_bar() {
   _panel_goto $STATUS_ROW 2
   
   case "$FOCUSED_PANEL" in
-    tree)      printf "${B}${YL}[TREE]${R}    j/k:nav  1-3:switch  q:quit  ${D}progress: ${progress}${R}" ;;
-    exercises) printf "${B}${GR}[EXERCISES]${R}  j/k:scroll  1-3:switch  q:quit  ${D}progress: ${progress}${R}" ;;
-    terminal)  printf "${B}${CY}[TERMINAL]${R}  type commands  1-3:switch  q:quit  ${D}progress: ${progress}${R}" ;;
+    tree)      printf "${B}${YL}[TREE]${R}      Tab:switch  j/k:nav  1-3:jump  ?:help  q:quit  ${D}progress: ${progress}${R}" ;;
+    exercises) printf "${B}${GR}[EXERCISES]${R}  Tab:switch  j/k:scroll  1-3:jump  ?:help  q:quit  ${D}progress: ${progress}${R}" ;;
+    terminal)  printf "${B}${CY}[TERMINAL]${R}   Tab:switch  type commands  1-3:jump  ?:help  q:quit  ${D}progress: ${progress}${R}" ;;
   esac
-  
-  _panel_goto $STATUS_ROW 1
-  printf "${D}+"
-  printf '%*s' "$((TERM_COLS - 2))" | tr ' ' '-'
-  printf "+${R}"
 }
 
 _parse_all_missions() {
@@ -281,7 +399,8 @@ _render_tree() {
   fi
 
   _panel_goto 2 2
-  printf "${B}${YL}[MISSIONS]${R}"
+  if [ "$FOCUSED_PANEL" = "tree" ]; then printf "${B}${YL}> MISSIONS${R}"
+  else printf "${B}${GR}MISSIONS${R}"; fi
 
   local r
   for ((r = 3; r <= TOP_ROWS - 1; r++)); do
@@ -372,15 +491,20 @@ _render_exercises() {
 }
 
 _render_terminal() {
-  local max_lines=$((BOTTOM_ROWS - 1))
+  # last_content: last scrollable content row (row TERM_ROWS-2 is reserved for the prompt)
+  local last_content=$((TERM_ROWS - 3))
+  local fill=$((RIGHT_COLS - 3))   # safe fill width — stays left of the right border
+  local max_line=$((RIGHT_COLS - 4))  # max visible chars per content line
 
+  _panel_goto $((MID_ROW + 1)) $((LEFT_COLS + 3))
+  printf '%*s' "$fill" ""
   _panel_goto $((MID_ROW + 1)) $((LEFT_COLS + 3))
   if [ "$FOCUSED_PANEL" = "terminal" ]; then printf "${B}${YL}> TERMINAL${R}"
   else printf "${B}${CY}TERMINAL${R}"; fi
 
   local r
-  for ((r = MID_ROW + 2; r <= TERM_ROWS - 2; r++)); do
-    _panel_goto $r $((LEFT_COLS + 3)); printf '%*s' "$((RIGHT_COLS - 3))" ""
+  for ((r = MID_ROW + 2; r <= last_content; r++)); do
+    _panel_goto $r $((LEFT_COLS + 3)); printf '%*s' "$fill" ""
   done
 
   local row=$((MID_ROW + 2))
@@ -406,14 +530,19 @@ _render_terminal() {
   fi
 
   local i=0 total=${#TERM_LINES[@]}
+  local avail=$((last_content - row + 1))
   local start=0
-  if [ $total -gt $((TERM_ROWS - row - 1)) ]; then
-    start=$((total - (TERM_ROWS - row - 1)))
-  fi
+  [ $total -gt $avail ] && start=$((total - avail))
   while [ $i -lt $start ]; do i=$((i + 1)); done
-  while [ $i -lt $total ] && [ $row -le $((TERM_ROWS - 2)) ]; do
+  while [ $i -lt $total ] && [ $row -le $last_content ]; do
+    local raw="${TERM_LINES[$i]}"
+    local visible; visible=$(printf '%b' "$raw" | sed $'s/\033\\[[0-9;]*[mKHJABCDfu]//g' 2>/dev/null)
     _panel_goto $row $((LEFT_COLS + 3))
-    printf "%b" "${TERM_LINES[$i]}"
+    if [ ${#visible} -le $max_line ]; then
+      printf "%b" "$raw"
+    else
+      printf "%s…" "${visible:0:$((max_line - 1))}"
+    fi
     row=$((row + 1))
     i=$((i + 1))
   done
@@ -454,71 +583,30 @@ _panel_draw_all() {
     _PANEL_NEEDS_STATUS=0
   fi
   
-  tput cup $((TERM_ROWS - 1)) $((LEFT_COLS + 3))
+  # Clear the prompt row (TERM_ROWS-2, 1-indexed) so callers start with a clean line
+  _panel_goto $((TERM_ROWS - 2)) $((LEFT_COLS + 3))
+  printf '%*s' "$((RIGHT_COLS - 3))" ""
+  tput cup $((TERM_ROWS - 3)) $((LEFT_COLS + 3))
   _panel_show_cursor
 }
 
 # ── Tree navigation ──────────────────────────────────────────────────────────
 _tree_navigate() {
   local dir=$1
+  local max_lines=$((TOP_ROWS - 2))
   local visible_items=($(_get_visible_tree_items))
   local vis_count=${#visible_items[@]}
-  
-  [ $TREE_SCROLL -lt 0 ] && TREE_SCROLL=0
-  [ $TREE_SCROLL -gt $((vis_count - max_lines)) ] && TREE_SCROLL=$((vis_count - max_lines))
-  [ $TREE_SCROLL -lt 0 ] && TREE_SCROLL=0
-  [ $TREE_CURSOR -ge $vis_count ] && TREE_CURSOR=$((vis_count - 1))
+
+  TREE_CURSOR=$((TREE_CURSOR + dir))
   [ $TREE_CURSOR -lt 0 ] && TREE_CURSOR=0
+  [ $TREE_CURSOR -ge $vis_count ] && TREE_CURSOR=$((vis_count - 1))
 
-  _panel_goto 2 2
-  if [ "$FOCUSED_PANEL" = "tree" ]; then printf "${B}${YL}> MISSIONS${R}"
-  else printf "${B}${GR}MISSIONS${R}"; fi
-
-  local r
-  for ((r = 3; r <= TOP_ROWS - 1; r++)); do
-    _panel_goto $r 2; printf '%*s' "$((LEFT_COLS - 2))" ""
-  done
-
-  if [ $vis_count -eq 0 ]; then
-    _panel_goto 4 2; printf "${D}No missions found${R}"
-    return
+  if [ $TREE_CURSOR -lt $TREE_SCROLL ]; then
+    TREE_SCROLL=$TREE_CURSOR
+  elif [ $TREE_CURSOR -ge $((TREE_SCROLL + max_lines)) ]; then
+    TREE_SCROLL=$((TREE_CURSOR - max_lines + 1))
   fi
-
-  local display_row=3 li=$TREE_SCROLL
-  while [ $li -lt $vis_count ] && [ $display_row -le $((TOP_ROWS - 2)) ]; do
-    local entry="${visible_items[$li]}"
-    local item="${entry#*:}"
-    local type="${item%%:*}" rest="${item#*:}"
-    local num="${rest%%:*}" label="${rest#*:}"
-    local is_cursor=0
-    [ $li -eq $TREE_CURSOR ] && is_cursor=1
-    
-    local prefix="  " expanded="${TREE_EXPANDED[0]}"
-    if [ "$type" = "M" ]; then
-      local midx=0 mi=0
-      for t in "${TREE_ITEMS[@]}"; do
-        if [[ "$t" == M:* ]]; then
-          local tnum="${t#M:}"; tnum="${tnum%%:*}"
-          if [ "$tnum" = "$num" ]; then break; fi
-          midx=$((midx + 1))
-        fi
-        mi=$((mi + 1))
-      done
-      expanded="${TREE_EXPANDED[$midx]}"
-      prefix="> "
-    fi
-    local icon=">"; [ "$expanded" = "1" ] && icon="v"
-    _panel_goto $display_row 2
-    if [ "$type" = "M" ]; then
-      if [ $is_cursor -eq 1 ]; then printf "${B}${YL}> %s${R}" "$num $label"
-      else printf "${D}> %s${R}" "$num $label"; fi
-    else
-      if [ $is_cursor -eq 1 ]; then printf "${B}${YL}> %s${R}" "$label"
-      else printf "${D}> %s${R}" "$label"; fi
-    fi
-    display_row=$((display_row + 1))
-    li=$((li + 1))
-  done
+  [ $TREE_SCROLL -lt 0 ] && TREE_SCROLL=0
 }
 
 _tree_get_mission_idx() {
@@ -706,6 +794,8 @@ _panel_input_loop() {
               _scroll_exercises $((TOP_ROWS - 3))
             fi
             _mark_all_dirty; _panel_draw_all ;;
+          '[Z')  # Shift+Tab
+            _focus_prev_panel; _mark_all_dirty; _panel_draw_all ;;
           '')
             FOCUSED_PANEL="terminal"
             _mark_all_dirty; _panel_draw_all ;;
@@ -979,18 +1069,38 @@ _TRY_CMD=""
 _read_try() {
   if [ "$PANEL_MODE_ACTIVE" -eq 1 ]; then
     FOCUSED_PANEL="terminal"
+    _mark_all_dirty; _panel_draw_all
+
+    # Auto-launch the real terminal immediately — no Enter required
+    _enter_real_terminal "$STEP_HINT"
+
+    # After shell exits, let user skip, retry, or continue
+    local _show_post_prompt
+    _show_post_prompt() {
+      _panel_goto $((TERM_ROWS - 2)) $((LEFT_COLS + 3))
+      tput el 2>/dev/null
+      printf "${B}${GR}Enter${R}${D}: continue  r: retry  s: skip  q: quit${R}  "
+      _panel_show_cursor
+    }
+    _show_post_prompt
+
+    while true; do
+      local key; read -rsn1 key 2>/dev/null
+      case "$key" in
+        $'\x0d'|'')  _TRY_CMD="_pty_session"; return 0 ;;
+        'r')
+          _enter_real_terminal "$STEP_HINT"
+          _show_post_prompt ;;
+        's')  _TRY_CMD=""; return 1 ;;
+        'q'|'Q') _quit ;;
+        *) ;;
+      esac
+    done
   fi
-  
+
+  # ── Classic mode ──────────────────────────────────────────────────────────
   while true; do
-    if [ "$PANEL_MODE_ACTIVE" -eq 1 ]; then
-      _panel_input_loop
-      if [ "$FOCUSED_PANEL" = "terminal" ]; then
-        _panel_goto $((TERM_ROWS - 1)) $((LEFT_COLS + 3))
-        printf "${B}${GR}\$${R} "
-      fi
-    else
-      printf "  ${B}${GR}\$${R} "
-    fi
+    printf "  ${B}${GR}\$${R} "
     local input; read -r input
     if [ -z "$input" ]; then _TRY_CMD=""; return 1; fi
     _is_meta "$input"
@@ -1007,7 +1117,7 @@ _read_pause() {
     if [ "$PANEL_MODE_ACTIVE" -eq 1 ]; then
       _panel_input_loop
       if [ "$PANEL_MODE_ACTIVE" -eq 1 ]; then
-        _panel_goto $((TERM_ROWS - 1)) $((LEFT_COLS + 3))
+        _panel_goto $((TERM_ROWS - 2)) $((LEFT_COLS + 3))
         if [ "$first" -eq 1 ]; then
           if [ -z "$msg" ]; then printf "${B}press Enter for next${R}${D}  (hint · skip · q · ?)${R}  "
           else printf "${B}press Enter for next${R}${D}  (${msg})${R}  "; fi
@@ -1021,7 +1131,7 @@ _read_pause() {
         first=0
       else printf "  ${B}press Enter for next${R}  "; fi
     fi
-    local input; read -r input
+    local input; read -rs input
     _is_meta "$input"
     local rc=$?
     [ $rc -eq 0 ] && continue
@@ -1035,6 +1145,8 @@ _read_pause() {
 # =============================================================================
 _quit() {
   _save_state
+  _terminate_shell_session
+  [ -n "$_PTY_CWD_FILE" ] && rm -f "$_PTY_CWD_FILE" 2>/dev/null
   if [ "$PANEL_MODE_ACTIVE" -eq 1 ]; then
     _panel_clear
     local mid=$((TERM_ROWS / 2 - 2))
@@ -1065,6 +1177,26 @@ trap '_quit' INT
 #  PUBLIC API
 # =============================================================================
 
+_prompt_yes_no_panel() {
+  local prompt="$1"
+  local row=$((MID_ROW + 6))
+  local col=$((LEFT_COLS + 3))
+  _panel_goto $row $col
+  tput el 2>/dev/null
+  printf "%b" "$prompt"
+  _panel_show_cursor
+  _YESNO_RESULT="y"
+  while true; do
+    local key; read -rsn1 key 2>/dev/null
+    case "$key" in
+      [yY]) _YESNO_RESULT="y"; break ;;
+      [nN]) _YESNO_RESULT="n"; break ;;
+      "")   _YESNO_RESULT="y"; break ;;
+    esac
+  done
+  _panel_hide_cursor
+}
+
 init_mission() {
   MISSION_NUM="$1"; MISSION_NAME="$2"; STEP_TOTAL="$3"
   STEP_NUM=0; ERRORS=0; RESUME_FROM=0; STEP_HINT=""
@@ -1081,10 +1213,8 @@ init_mission() {
     if [ "$saved_step" -gt 0 ] && [ "$saved_step" -lt "$STEP_TOTAL" ]; then
       _panel_goto $((MID_ROW + 5)) $((LEFT_COLS + 3))
       printf "${YL}Saved position found:${R} Step ${saved_step} / ${STEP_TOTAL}\n"
-      _panel_goto $((MID_ROW + 6)) $((LEFT_COLS + 3))
-      printf "Resume from step ${saved_step}? [Y/n] "
-      local ans; read -r ans
-      if [[ "$ans" =~ ^[Nn]$ ]]; then RESUME_FROM=0; _clear_state
+      _prompt_yes_no_panel "Resume from step ${saved_step}? [Y/n] "
+      if [[ "$_YESNO_RESULT" =~ ^[Nn]$ ]]; then RESUME_FROM=0; _clear_state
       else RESUME_FROM=$saved_step; fi
     fi
     return
@@ -1157,11 +1287,10 @@ demo() {
   _replaying && return
   local cmd="$1" label="${2:-}"
   if [ "$PANEL_MODE_ACTIVE" -eq 1 ]; then
-    local output; output=$(eval "$cmd" 2>&1)
     [ -n "$label" ] && _term_add "${D}${label}${R}"
-    _term_add "${B}${GR}\$${R} ${B}${cmd}${R}"
-    while IFS= read -r line; do _term_add "  ${D}${line}${R}"; done <<< "$output"
-    _panel_draw_all; _read_pause; return
+    _panel_draw_all
+    _enter_real_terminal "$STEP_HINT" "$cmd"
+    _read_pause; return
   fi
   clear; _compact_header
   [ -n "$label" ] && printf "  ${D}${label}${R}\n\n"
@@ -1174,11 +1303,10 @@ show() {
   _replaying && return
   local cmd="$1" label="${2:-}"
   if [ "$PANEL_MODE_ACTIVE" -eq 1 ]; then
-    local output; output=$(eval "$cmd" 2>&1)
     [ -n "$label" ] && _term_add "${D}${label}${R}"
-    _term_add "${B}${GR}\$${R} ${B}${cmd}${R}"
-    while IFS= read -r line; do _term_add "  ${D}${line}${R}"; done <<< "$output"
-    _panel_draw_all; return
+    _panel_draw_all
+    _enter_real_terminal "$STEP_HINT" "$cmd"
+    return
   fi
   clear; _compact_header
   [ -n "$label" ] && printf "  ${D}${label}${R}\n\n"
@@ -1198,6 +1326,10 @@ try() {
     local skipped=$?
     if [ "$skipped" -eq 1 ] || [ -z "$_TRY_CMD" ]; then
       _term_add "${D}  ↳ skipped${R}"; _panel_draw_all; _read_pause; return
+    fi
+    if [ "$_TRY_CMD" = "_pty_session" ]; then
+      _term_add "${GR}  terminal session complete${R}"
+      _panel_draw_all; _read_pause; return
     fi
     _term_add "${D}ran:${R}  ${B}${_TRY_CMD}${R}"
     local output exit_code=0
@@ -1237,6 +1369,18 @@ try_match() {
     _read_try; local skipped=$?
     if [ "$skipped" -eq 1 ] || [ -z "$_TRY_CMD" ]; then
       _term_add "${D}  ↳ skipped${R}"; _panel_draw_all; _read_pause; return
+    fi
+    if [ "$_TRY_CMD" = "_pty_session" ]; then
+      local verify_out verify_exit=0
+      verify_out=$(eval "$hint" 2>&1) || verify_exit=$?
+      if echo "$verify_out" | grep -q "$expected"; then
+        _term_add "${GR}✓  Correct${R}  ${D}— output contains '${expected}'${R}"
+      else
+        _term_add "${YL}~  Expected output to contain '${expected}'${R}"
+        _term_add "${D}   Open the terminal again to retry, or press Enter for next${R}"
+        ERRORS=$((ERRORS + 1)); _save_state
+      fi
+      _panel_draw_all; _read_pause; return
     fi
     _term_add "${D}ran:${R}  ${B}${_TRY_CMD}${R}"
     local output exit_code=0
@@ -1311,6 +1455,7 @@ section() {
 
 mission_complete() {
   _clear_state
+  [ -n "$_PTY_CWD_FILE" ] && rm -f "$_PTY_CWD_FILE" 2>/dev/null
   if [ "$PANEL_MODE_ACTIVE" -eq 1 ]; then
     _panel_clear
     local mid=$((TERM_ROWS / 2 - 3))
