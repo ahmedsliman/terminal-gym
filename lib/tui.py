@@ -109,11 +109,6 @@ SECTIONS = [
 # ─── Low-level output ─────────────────────────────────────────────────────────
 OUT = sys.stdout.buffer  # raw bytes — fast, no codec overhead
 
-# Ensure stdout is always in blocking mode — PTY setup can leave it non-blocking
-import fcntl
-_fl = fcntl.fcntl(OUT.fileno(), fcntl.F_GETFL)
-fcntl.fcntl(OUT.fileno(), fcntl.F_SETFL, _fl & ~os.O_NONBLOCK)
-
 
 def w(s):
     if isinstance(s, str):
@@ -1228,7 +1223,6 @@ class Tui:
         old      = termios.tcgetattr(stdin_fd)
         tty.setraw(stdin_fd)
         fl       = fcntl.fcntl(stdin_fd, fcntl.F_GETFL)
-        fcntl.fcntl(stdin_fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
         def on_resize(sig, frame):
             self.calculate_layout()
