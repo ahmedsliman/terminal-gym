@@ -109,6 +109,11 @@ SECTIONS = [
 # ─── Low-level output ─────────────────────────────────────────────────────────
 OUT = sys.stdout.buffer  # raw bytes — fast, no codec overhead
 
+# Ensure stdout is always in blocking mode — PTY setup can leave it non-blocking
+import fcntl
+_fl = fcntl.fcntl(OUT.fileno(), fcntl.F_GETFL)
+fcntl.fcntl(OUT.fileno(), fcntl.F_SETFL, _fl & ~os.O_NONBLOCK)
+
 
 def w(s):
     if isinstance(s, str):
