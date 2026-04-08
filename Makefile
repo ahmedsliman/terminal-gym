@@ -8,6 +8,8 @@ PROJECTS_DIR  := projects
 PROGRESS_FILE := progress.md
 LAB_DIR       := lab
 
+.DEFAULT_GOAL := help
+
 # Panel mode — set to 0 to use classic UI
 export USE_PANELS ?= 1
 
@@ -27,17 +29,10 @@ MG := \033[35m
 CY := \033[36m
 
 .PHONY: help start status mission exercises practice review next hint check solution done \
-        project lab tui bootstrap _require_n _pad
+        project lab tui _require_n _pad
 
-# ── bootstrap ─────────────────────────────────────────────────────────────────
-bootstrap:
-	python3 -m pip install --user -r requirements.txt
-
-# ── tui ──────────────────────────────────────────────────────────────────────
-# Real 3-panel TUI with an actual bash PTY shell as the terminal panel.
+# ── tui ───────────────────────────────────────────────────────────────────────
 tui:
-	@python3 -c "import pyte" 2>/dev/null || \
-	  (printf "$(RD)Error:$(R) pyte is not installed. Run: $(B)make bootstrap$(R)\n" && exit 1)
 	@N_ARG=$${N:-01}; \
 	python3 lib/tui.py --missions-dir $(MISSIONS_DIR) --start $$N_ARG
 
@@ -47,7 +42,7 @@ help:
 	@printf "\n"
 	@printf "$(B)$(CY)  ╔══════════════════════════════════════════════════════════╗$(R)\n"
 	@printf "$(B)$(CY)  ║$(R)         $(B)LINUX CLI INTERACTIVE COURSE$(R)                     $(B)$(CY)║$(R)\n"
-	@printf "$(B)$(CY)  ║$(R)         $(D)17 missions  ·  4 projects  ·  terminal only$(R)     $(B)$(CY)║$(R)\n"
+	@printf "$(B)$(CY)  ║$(R)         $(D)19 missions  ·  4 projects  ·  terminal only$(R)     $(B)$(CY)║$(R)\n"
 	@printf "$(B)$(CY)  ╠══════════════════════════════════════════════════════════╣$(R)\n"
 	@printf "$(B)$(CY)  ║$(R)                                                          $(B)$(CY)║$(R)\n"
 	@printf "$(B)$(CY)  ║$(R)  $(B)NAVIGATION$(R)                                             $(B)$(CY)║$(R)\n"
