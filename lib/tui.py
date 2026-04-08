@@ -216,6 +216,12 @@ def style_md(line):
     s = line.rstrip()
     if not s:
         return ''
+    # Code fence markers — hide them, keep the spacing
+    if s.lstrip().startswith('```'):
+        return ''
+    # Horizontal rule — render as a dim line
+    if s.strip() == '---':
+        return f'{C_DIM}{"─" * len(s.rstrip())}{RESET}'
     if s.startswith('# '):
         return f'{BOLD}{C_MAUVE}{s[2:]}{RESET}'
     if s.startswith('## '):
@@ -227,11 +233,11 @@ def style_md(line):
     if s.lstrip().startswith(('- ', '* ')):
         indent = len(s) - len(s.lstrip())
         rest   = s.lstrip()[2:]
-        s = ' ' * indent + f'{C_BLUE}•{RESET} {C_TEXT}' + rest + RESET
-    out = re.sub(r'\*\*([^*]+)\*\*', f'{BOLD}{C_TEXT}\\1{RESET}', s)
+        s = ' ' * indent + f'{C_PEACH}•{RESET} {C_TEXT}' + rest + RESET
+    out = re.sub(r'\*\*([^*]+)\*\*', f'{BOLD}{C_YELLOW}\\1{RESET}', s)
     out = re.sub(r'`([^`]+)`', f'{C_GREEN}\\1{RESET}', out)
     if out == s:           # no markdown matched — plain text
-        out = f'{C_SUB}{out}{RESET}'
+        out = f'{C_TEXT}{out}{RESET}'
     return out
 
 
@@ -927,7 +933,7 @@ class Tui:
 
             if kind == 'section':
                 arrow = '▼' if self.section_expanded.get(payload, True) else '▶'
-                style = (BOLD + C_MAUVE) if is_cursor else C_DIM
+                style = (BOLD + C_MAUVE) if is_cursor else (C_SUB + BOLD)
                 label = payload[:iw - 3]
                 goto(row, 2)
                 w(f'{row_bg} {style}{arrow} {label}{RESET}')
@@ -1022,14 +1028,20 @@ class Tui:
             goto(body_row + i, c1 + 2)
             w(truncate_visible(line, max_w))
 
-        # Scroll indicator (right edge of panel)
+        # Proportional scrollbar (right edge of panel)
         if len(wrapped) > body_rows:
-            ind_col = c1 + iw
-            ratio   = self.page_scroll / max(1, max_scroll)
-            knob    = body_row + int(ratio * (body_rows - 1))
-            for r in range(body_row, body_row + body_rows):
-                goto(r, ind_col); w(f'{C_DIM}│{RESET}')
-            goto(knob, ind_col); w(f'{BOLD}{C_SAPPH}█{RESET}')
+            sb_col      = c1 + iw
+            thumb_len   = max(1, int(round(body_rows * body_rows / len(wrapped))))
+            thumb_start = int(round(
+                self.page_scroll / max(1, max_scroll) * (body_rows - thumb_len)
+            ))
+            accent = PANEL_COLORS['exercises'] if focused else C_DIM
+            for r in range(body_rows):
+                goto(body_row + r, sb_col)
+                if thumb_start <= r < thumb_start + thumb_len:
+                    w(f'{accent}█{RESET}')
+                else:
+                    w(f'{C_DIM}░{RESET}')
 
     def _wrapped_page(self, mi, pi, max_w):
         key = (mi, pi, max_w)
