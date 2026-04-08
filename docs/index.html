@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>terminal-gym — Learn Linux by doing</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Nav ─────────────────────────────────────────────────────────────── -->
+  <nav>
+    <span class="nav-logo">terminal-gym</span>
+    <a href="https://github.com/ahmedsliman/terminal-gym" target="_blank" class="btn btn-ghost">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+  </nav>
+
+  <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="badge">19 missions · 4 projects · zero browser</div>
+      <h1>terminal-gym</h1>
+      <p class="tagline">Learn Linux by doing — hands-on missions inside a real terminal UI.</p>
+      <div class="codeblock hero-code">
+        <span class="cb-prompt">$</span> git clone https://github.com/ahmedsliman/terminal-gym<br>
+        <span class="cb-prompt">$</span> cd terminal-gym<br>
+        <span class="cb-prompt">$</span> make start
+      </div>
+      <div class="hero-actions">
+        <a href="https://github.com/ahmedsliman/terminal-gym" target="_blank" class="btn btn-primary">Get Started</a>
+        <a href="#missions" class="btn btn-ghost">See Missions</a>
+      </div>
+    </div>
+
+    <div class="tui-preview">
+      <div class="tui-bar">
+        <span class="tui-dot red"></span>
+        <span class="tui-dot yellow"></span>
+        <span class="tui-dot green"></span>
+        <span class="tui-title">terminal-gym</span>
+      </div>
+      <pre class="tui-screen"><span class="dim">┌─</span><span class="mauve"> MISSIONS </span><span class="dim">──────┬─</span><span class="sapph"> EXERCISES </span><span class="dim">─────────────────────────┐</span>
+<span class="dim">│</span> <span class="dim">▼</span> <span class="sub">Foundations  </span><span class="dim">│</span>  <span class="sapph bold">Exercise 3 · Chaining Pipes</span>          <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green">✓ 01</span> <span class="sub">basics    </span><span class="dim">│</span>                                      <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green">✓ 02</span> <span class="sub">vim       </span><span class="dim">│</span>  <span class="yellow bold">Goal:</span> <span class="text">Combine ps, grep, and awk</span>       <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green">✓ 04</span> <span class="sub">shell     </span><span class="dim">│</span>  <span class="text">to list processes by your user.</span>      <span class="dim">│</span>
+<span class="dim">│</span> <span class="dim">▼</span> <span class="sub">Shell Power  </span><span class="dim">│</span>                                      <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green">✓ 05</span> <span class="sub">expand..  </span><span class="dim">│</span>  <span class="peach">•</span> <span class="text">Use </span><span class="grn">ps aux</span><span class="text"> to list all processes</span>  <span class="dim">│</span>
+<span class="dim">│</span>  <span class="mauve bold">● 06</span> <span class="text">pipes     </span><span class="dim">│</span>  <span class="peach">•</span> <span class="text">Pipe through </span><span class="grn">grep $USER</span>           <span class="dim">│</span>
+<span class="dim">│</span>  <span class="dim">· 07</span> <span class="sub">users     </span><span class="dim">├──────────────────────────────────────┤</span>
+<span class="dim">│</span> <span class="dim">▶</span> <span class="sub">Filesystem   </span><span class="dim">│</span>  <span class="grn bold">VIEW MODE</span>  <span class="dim">i · Enter → activate shell</span>  <span class="dim">│</span>
+<span class="dim">│</span> <span class="dim">▶</span> <span class="sub">System       </span><span class="dim">│</span>  <span class="text">$ ps aux | grep $USER | awk '{print $11}'</span><span class="dim">│</span>
+<span class="dim">│</span> <span class="dim">▶</span> <span class="sub">Advanced     </span><span class="dim">│</span>  <span class="sub">/bin/bash</span>                             <span class="dim">│</span>
+<span class="dim">└──────────────────┴──────────────────────────────────────┘</span>
+ <span class="mauve">[NORMAL MODE]</span>  <span class="dim">↑↓/jk navigate · Enter open   </span><span class="grn">████████░░</span><span class="dim"> 6/19</span></pre>
+    </div>
+  </header>
+
+  <!-- ── Features ─────────────────────────────────────────────────────────── -->
+  <section class="section" id="features">
+    <div class="container">
+      <h2 class="section-title">Everything in one terminal</h2>
+      <p class="section-sub">No browser tabs, no context switching. Open a mission, read the exercises, and practice — all in the same window.</p>
+      <div class="features">
+
+        <div class="feature">
+          <div class="feature-icon sapph">❯_</div>
+          <h3>Live bash terminal</h3>
+          <p>A real PTY shell embedded in the terminal panel. Switch between reading and typing with a single keypress.</p>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon mauve">≡</div>
+          <h3>19 structured missions</h3>
+          <p>From basic commands to awk, jq, and shell scripting — each mission has a concept brief, paginated exercises, and worked solutions.</p>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon green">✓</div>
+          <h3>Progress tracking</h3>
+          <p>Per-exercise grading based on your shell history. See exactly which commands you've practiced and what's left.</p>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon peach">◈</div>
+          <h3>4 real-world projects</h3>
+          <p>Apply what you've learned — build a log analyzer, backup script, user audit tool, and dotfiles manager.</p>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon teal">⌨</div>
+          <h3>Vim-style navigation</h3>
+          <p>Move through missions with j/k, switch panels with 1/2/3, and never take your hands off the keyboard.</p>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon yellow">◎</div>
+          <h3>Zero dependencies</h3>
+          <p>Pure Python 3 + bash. No pip installs, no Docker, no internet connection required. Clone and go.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Missions ──────────────────────────────────────────────────────────── -->
+  <section class="section section-alt" id="missions">
+    <div class="container">
+      <h2 class="section-title">19 missions across 5 sections</h2>
+      <p class="section-sub">Each mission includes a concept brief, hands-on exercises, worked solutions, and an interactive practice session.</p>
+
+      <div class="missions-grid">
+
+        <div class="mission-section">
+          <div class="ms-header foundations">Foundations</div>
+          <ul>
+            <li><span class="num">01</span> Basic Commands</li>
+            <li><span class="num">02</span> Text Files &amp; Vim</li>
+            <li><span class="num">03</span> Linux Philosophy</li>
+            <li><span class="num">04</span> Terminal &amp; Shell</li>
+          </ul>
+        </div>
+
+        <div class="mission-section">
+          <div class="ms-header shell-power">Shell Power</div>
+          <ul>
+            <li><span class="num">05</span> Shell Expansions</li>
+            <li><span class="num">06</span> Pipes &amp; Redirection</li>
+            <li><span class="num">07</span> Users &amp; Groups</li>
+          </ul>
+        </div>
+
+        <div class="mission-section">
+          <div class="ms-header filesystem">Filesystem</div>
+          <ul>
+            <li><span class="num">08</span> File Management</li>
+            <li><span class="num">09</span> Filesystem Hierarchy</li>
+            <li><span class="num">10</span> File Types &amp; Viewing</li>
+            <li><span class="num">11</span> Finding Files</li>
+          </ul>
+        </div>
+
+        <div class="mission-section">
+          <div class="ms-header system">System</div>
+          <ul>
+            <li><span class="num">12</span> Archive &amp; Compression</li>
+            <li><span class="num">13</span> Permissions</li>
+            <li><span class="num">14</span> Process Management</li>
+          </ul>
+        </div>
+
+        <div class="mission-section">
+          <div class="ms-header advanced">Advanced</div>
+          <ul>
+            <li><span class="num">15</span> Package Management</li>
+            <li><span class="num">16</span> Remote Servers &amp; SSH</li>
+            <li><span class="num">17</span> Shell Scripting</li>
+            <li><span class="num">18</span> awk</li>
+            <li><span class="num">19</span> jq</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Quick Start ───────────────────────────────────────────────────────── -->
+  <section class="section" id="quickstart">
+    <div class="container container-narrow">
+      <h2 class="section-title">Get started in 30 seconds</h2>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Clone the repo</h4>
+            <div class="codeblock">
+              <span class="cb-prompt">$</span> git clone https://github.com/ahmedsliman/terminal-gym
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Launch the TUI</h4>
+            <div class="codeblock">
+              <span class="cb-prompt">$</span> cd terminal-gym &amp;&amp; make start
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Pick a mission and start typing</h4>
+            <p class="step-desc">Navigate with <kbd>j</kbd> / <kbd>k</kbd>, open a mission with <kbd>Enter</kbd>, jump to the terminal with <kbd>3</kbd>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="requires">
+        <span class="req-label">Requires</span>
+        <span class="req-item">Linux</span>
+        <span class="req-sep">·</span>
+        <span class="req-item">bash</span>
+        <span class="req-sep">·</span>
+        <span class="req-item">make</span>
+        <span class="req-sep">·</span>
+        <span class="req-item">python3</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ───────────────────────────────────────────────────────────── -->
+  <footer>
+    <div class="container">
+      <span class="footer-name">terminal-gym</span>
+      <span class="footer-sep">·</span>
+      <a href="https://github.com/ahmedsliman/terminal-gym" target="_blank">GitHub</a>
+      <span class="footer-sep">·</span>
+      <span class="dim">MIT License</span>
+    </div>
+  </footer>
+
+</body>
+</html>
