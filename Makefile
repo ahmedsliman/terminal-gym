@@ -29,12 +29,16 @@ MG := \033[35m
 CY := \033[36m
 
 .PHONY: help start status mission exercises practice review next hint check solution done \
-        project lab tui _require_n _pad
+        project lab tui web _require_n _pad
 
 # ── tui ───────────────────────────────────────────────────────────────────────
 tui:
 	@N_ARG=$${N:-01}; \
 	python3 lib/tui.py --missions-dir $(MISSIONS_DIR) --start $$N_ARG
+
+# ── web ───────────────────────────────────────────────────────────────────────
+web:
+	@python3 web/server.py --port $${PORT:-8080}
 
 # ── help ─────────────────────────────────────────────────────────────────────
 

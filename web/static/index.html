@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>terminal-gym</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css" />
+</head>
+<body>
+
+  <div class="layout">
+    <!-- Left: Missions tree -->
+    <div class="panel missions-panel">
+      <div class="panel-header missions-header">
+        <span>MISSIONS</span>
+        <span class="progress-counter" id="progress-counter"></span>
+      </div>
+      <div class="panel-body" id="missions-list"></div>
+    </div>
+
+    <!-- Right: Exercises + Terminal -->
+    <div class="right">
+      <!-- Top-right: Exercises -->
+      <div class="panel exercises-panel">
+        <div class="panel-header exercises-header">
+          <span id="exercises-title">EXERCISES</span>
+          <span class="page-nav" id="page-nav"></span>
+        </div>
+        <div class="panel-sub" id="exercises-progress"></div>
+        <div class="panel-body exercises-body" id="exercises-content"></div>
+      </div>
+
+      <!-- Resize handle -->
+      <div class="resize-handle" id="resize-handle"></div>
+
+      <!-- Bottom-right: Terminal -->
+      <div class="panel terminal-panel">
+        <div class="panel-header terminal-header">
+          <span id="terminal-title">TERMINAL</span>
+          <span class="terminal-hint" id="terminal-hint"></span>
+        </div>
+        <div class="panel-body terminal-body" id="terminal-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status-bar">
+    <span class="status-left" id="status-left"></span>
+    <span class="status-right" id="status-right"></span>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
