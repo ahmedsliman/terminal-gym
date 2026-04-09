@@ -114,30 +114,30 @@ nav {
 
 /* ── Local hint ─────────────────────────────────────────────────────────── */
 .local-hint {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 24px 40px;
-  text-align: center;
-  font-size: .85rem;
+  max-width: 600px;
+  margin: 28px auto 0;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--bg-muted);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.local-label {
+  font-size: .8rem;
+  font-weight: 600;
   color: var(--sub);
+  white-space: nowrap;
 }
 .local-cmd {
-  display: inline-block;
-  margin-top: 8px;
-  background: #0f0f17;
-  border-radius: var(--r);
-  padding: 10px 18px;
-  box-shadow: var(--shadow-sm);
+  flex: 1;
+  overflow-x: auto;
 }
 .local-cmd code {
   font-family: var(--mono);
-  font-size: .8rem;
-  color: #f8f8f2;
-}
-.local-cmd .p {
-  color: #50fa7b;
-  user-select: none;
-  margin-right: 8px;
+  font-size: .78rem;
+  color: var(--text);
 }
 .terminal {
   background: #0f0f17;
