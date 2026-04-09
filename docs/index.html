@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>terminal-gym — Learn Linux by doing</title>
-  <meta name="description" content="19 hands-on Linux missions inside a 3-panel terminal UI. No browser, no account — just clone and run." />
+  <meta name="description" content="19 hands-on Linux missions with a real bash shell. Try it online or clone and run locally." />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -29,16 +29,15 @@
       Open source · Linux · CLI
     </div>
     <h1>Learn Linux<br><em>by doing</em></h1>
-    <p>19 hands-on missions inside a 3-panel terminal UI — concept brief, live exercises, and a real bash shell, all in one window.</p>
+    <p>19 hands-on missions inside a 3-panel UI — concept briefs, live exercises, and a real bash shell.</p>
     <div class="hero-btns">
       <a href="https://terminal-gym.onrender.com/" target="_blank" class="btn btn-primary">
         Try it online
       </a>
       <a href="https://github.com/ahmedsliman/terminal-gym" target="_blank" class="btn btn-outline">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-        View on GitHub
+        GitHub
       </a>
-      <a href="#quickstart" class="btn btn-outline">Quick start ↓</a>
     </div>
   </div>
 
@@ -67,97 +66,9 @@
     </div>
   </div>
 
-  <!-- Features -->
-  <section class="section">
-    <div class="section-label">Features</div>
-    <h2>Everything in one window</h2>
-    <p class="section-desc">No context switching. Read the concept, do the exercise, run the command — all without leaving your terminal.</p>
-    <div class="feat-grid">
-      <div class="feat">
-        <div class="feat-ico ico-purple">❯_</div>
-        <h3>Live bash terminal</h3>
-        <p>Real PTY shell embedded in the bottom panel. One keypress to switch between reading and typing.</p>
-      </div>
-      <div class="feat">
-        <div class="feat-ico ico-green">✓</div>
-        <h3>Auto grading</h3>
-        <p>Exercises are graded from your shell history. The UI marks commands done as you run them.</p>
-      </div>
-      <div class="feat">
-        <div class="feat-ico ico-teal">≡</div>
-        <h3>19 structured missions</h3>
-        <p>Each mission has a concept brief, paginated exercises, worked solutions, and a practice session.</p>
-      </div>
-      <div class="feat">
-        <div class="feat-ico ico-orange">◎</div>
-        <h3>Zero dependencies</h3>
-        <p>Pure Python 3 + bash. No pip installs, no Docker, no internet. Clone and run immediately.</p>
-      </div>
-    </div>
-  </section>
-
-  <hr class="divider" />
-
-  <!-- Missions -->
-  <section class="section">
-    <div class="section-label">Curriculum</div>
-    <h2>19 missions, 5 sections</h2>
-    <p class="section-desc">From basic commands to awk and jq — each mission builds on the last.</p>
-    <div class="missions-grid">
-      <div class="ms-card">
-        <div class="ms-card-head mh-a">Foundations</div>
-        <ul>
-          <li><span class="ms-num">01</span>Basic Commands</li>
-          <li><span class="ms-num">02</span>Text Files &amp; Vim</li>
-          <li><span class="ms-num">03</span>Linux Philosophy</li>
-          <li><span class="ms-num">04</span>Terminal &amp; Shell</li>
-        </ul>
-      </div>
-      <div class="ms-card">
-        <div class="ms-card-head mh-b">Shell Power</div>
-        <ul>
-          <li><span class="ms-num">05</span>Shell Expansions</li>
-          <li><span class="ms-num">06</span>Pipes &amp; Redirection</li>
-          <li><span class="ms-num">07</span>Users &amp; Groups</li>
-        </ul>
-      </div>
-      <div class="ms-card">
-        <div class="ms-card-head mh-c">Filesystem</div>
-        <ul>
-          <li><span class="ms-num">08</span>File Management</li>
-          <li><span class="ms-num">09</span>FS Hierarchy</li>
-          <li><span class="ms-num">10</span>File Types</li>
-          <li><span class="ms-num">11</span>Finding Files</li>
-        </ul>
-      </div>
-      <div class="ms-card">
-        <div class="ms-card-head mh-d">System</div>
-        <ul>
-          <li><span class="ms-num">12</span>Archive &amp; Compression</li>
-          <li><span class="ms-num">13</span>Permissions</li>
-          <li><span class="ms-num">14</span>Process Management</li>
-        </ul>
-      </div>
-      <div class="ms-card">
-        <div class="ms-card-head mh-e">Advanced</div>
-        <ul>
-          <li><span class="ms-num">15</span>Package Management</li>
-          <li><span class="ms-num">16</span>SSH</li>
-          <li><span class="ms-num">17</span>Shell Scripting</li>
-          <li><span class="ms-num">18</span>awk</li>
-          <li><span class="ms-num">19</span>jq</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <hr class="divider" />
-
   <!-- Quick start -->
   <section class="section section-sm" id="quickstart">
-    <div class="section-label">Get started</div>
-    <h2>Up and running in 30 seconds</h2>
-    <p class="section-desc">Requires Linux, bash, make, and python3. Nothing else.</p>
+    <h2>Or run it locally</h2>
     <div class="qs-box">
       <div class="qs-box-bar">bash</div>
       <div class="qs-code">
