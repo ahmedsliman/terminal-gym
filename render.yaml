@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: terminal-gym
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars: []
