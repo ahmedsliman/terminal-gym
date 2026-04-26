@@ -22,6 +22,29 @@ from dataclasses import dataclass
 # Standard ANSI color index → name (matches NAMED_COLORS in tui.py)
 _ANSI_FG = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
 
+# Bright ANSI colors (indices 8-15)
+_ANSI_BRIGHT = [
+    'brightblack', 'brightred', 'brightgreen', 'brightyellow',
+    'brightblue', 'brightmagenta', 'brightcyan', 'brightwhite',
+]
+
+def _color_256(n: int) -> str:
+    """Convert a 256-color index to a hex color string."""
+    if n < 8:
+        return _ANSI_FG[n]
+    if n < 16:
+        return _ANSI_BRIGHT[n - 8]
+    if n < 232:
+        # 6×6×6 color cube: 16 + 36*r + 6*g + b
+        n -= 16
+        r, g, b = n // 36, (n % 36) // 6, n % 6
+        # 0-5 → 0, 95, 135, 175, 215, 255
+        levels = [0, 95, 135, 175, 215, 255]
+        return f'{levels[r]:02x}{levels[g]:02x}{levels[b]:02x}'
+    # 24-level grayscale: 232-255
+    v = 8 + (n - 232) * 10
+    return f'{v:02x}{v:02x}{v:02x}'
+
 
 # ─── Data types ────────────────────────────────────────────────────────────────
 
@@ -59,12 +82,21 @@ class ScreenBuffer:
         self.lines:   int  = max(1, rows)
         self.cursor         = _Cursor()
         self.buffer         = defaultdict(lambda: defaultdict(Cell))
+        self.scroll_top:    int = 0        # DECSTBM top (inclusive)
+        self.scroll_bottom: int = rows - 1  # DECSTBM bottom (inclusive)
+        self.autowrap:      bool = True    # DECAWM: wrap at right margin
+        self.using_alt_buf: bool = False   # alternate screen active
+        self._saved_buf     = None         # saved main buffer
+        self._saved_cursor  = None         # saved cursor for alt screen swap
+        self._saved_scroll  = None         # saved scroll region for alt screen swap
 
     def resize(self, rows: int, cols: int):
         self.columns    = max(1, cols)
         self.lines      = max(1, rows)
         self.cursor.x   = min(self.cursor.x, self.columns - 1)
         self.cursor.y   = min(self.cursor.y, self.lines   - 1)
+        self.scroll_top    = 0
+        self.scroll_bottom  = self.lines - 1
 
 
 # ─── Byte stream parser ────────────────────────────────────────────────────────
@@ -151,7 +183,10 @@ class ByteStream:
                     self._lf()
                     self._state = self._NORMAL
                 elif byte == 0x4d:                  # 'M' — RI (reverse index)
-                    scr.cursor.y = max(0, scr.cursor.y - 1)
+                    if scr.cursor.y == scr.scroll_top:
+                        self._scroll_down()
+                    else:
+                        scr.cursor.y = max(0, scr.cursor.y - 1)
                     self._state  = self._NORMAL
                 elif byte == 0x63:                  # 'c' — RIS full reset
                     self._hard_reset()
@@ -186,15 +221,20 @@ class ByteStream:
         scr = self._scr
         cx, cy = scr.cursor.x, scr.cursor.y
 
-        # Auto-wrap at right margin
+        # DECAWM: wrap at right margin only when enabled
         if cx >= scr.columns:
-            cx = 0
-            cy += 1
+            if scr.autowrap:
+                cx = 0
+                cy += 1
+            else:
+                cx = scr.columns - 1
 
-        # Scroll when past bottom
-        if cy >= scr.lines:
-            cy = scr.lines - 1
+        # Scroll when past bottom of scroll region
+        if cy > scr.scroll_bottom:
+            cy = scr.scroll_bottom
             self._scroll_up()
+        elif cy < 0:
+            cy = 0
 
         scr.buffer[cy][cx] = Cell(
             data       = ch,
@@ -210,27 +250,79 @@ class ByteStream:
 
     def _lf(self):
         scr = self._scr
-        if scr.cursor.y >= scr.lines - 1:
+        if scr.cursor.y == scr.scroll_bottom:
             self._scroll_up()
-        else:
+        elif scr.cursor.y < scr.lines - 1:
             scr.cursor.y += 1
 
     def _scroll_up(self):
-        """Scroll the entire buffer up one line, discarding row 0."""
+        """Scroll the scroll region up one line (content moves up, top line lost)."""
         scr     = self._scr
+        top     = scr.scroll_top
+        bottom  = scr.scroll_bottom
         new_buf = defaultdict(lambda: defaultdict(Cell))
-        for r in range(1, scr.lines):
-            if r in scr.buffer:
-                new_buf[r - 1] = scr.buffer[r]
+        for r, row in scr.buffer.items():
+            if r < top or r > bottom:
+                new_buf[r] = row          # outside region: pass through
+            elif r > top:
+                new_buf[r - 1] = row      # shift up within region
+            # row == top: discarded by the scroll
+        scr.buffer.clear()
+        scr.buffer.update(new_buf)
+
+    def _scroll_down(self):
+        """Scroll the scroll region down one line (content moves down, bottom line lost)."""
+        scr     = self._scr
+        top     = scr.scroll_top
+        bottom  = scr.scroll_bottom
+        new_buf = defaultdict(lambda: defaultdict(Cell))
+        for r, row in scr.buffer.items():
+            if r < top or r > bottom:
+                new_buf[r] = row          # outside region: pass through
+            elif r < bottom:
+                new_buf[r + 1] = row      # shift down within region
+            # row == bottom: discarded by the scroll
         scr.buffer.clear()
         scr.buffer.update(new_buf)
 
     def _hard_reset(self):
         scr = self._scr
+        if scr.using_alt_buf:
+            self._switch_from_alt_screen()
         scr.buffer.clear()
         scr.cursor.x = scr.cursor.y = 0
+        scr.scroll_top = 0
+        scr.scroll_bottom = scr.lines - 1
+        scr.autowrap = True
         self._reset_attrs()
         self._state = self._NORMAL
+
+    def _switch_to_alt_screen(self):
+        scr = self._scr
+        if scr.using_alt_buf:
+            return
+        scr._saved_buf = scr.buffer
+        scr._saved_cursor = (scr.cursor.x, scr.cursor.y)
+        scr._saved_scroll = (scr.scroll_top, scr.scroll_bottom)
+        scr.buffer = defaultdict(lambda: defaultdict(Cell))
+        scr.cursor.x = scr.cursor.y = 0
+        scr.scroll_top = 0
+        scr.scroll_bottom = scr.lines - 1
+        scr.using_alt_buf = True
+        self._reset_attrs()
+
+    def _switch_from_alt_screen(self):
+        scr = self._scr
+        if not scr.using_alt_buf:
+            return
+        scr.buffer = scr._saved_buf if scr._saved_buf is not None else defaultdict(lambda: defaultdict(Cell))
+        scr.cursor.x, scr.cursor.y = scr._saved_cursor if scr._saved_cursor is not None else (0, 0)
+        scr.scroll_top, scr.scroll_bottom = scr._saved_scroll if scr._saved_scroll is not None else (0, scr.lines - 1)
+        scr._saved_buf = None
+        scr._saved_cursor = None
+        scr._saved_scroll = None
+        scr.using_alt_buf = False
+        self._reset_attrs()
 
     def _reset_attrs(self):
         self._fg   = 'default'
@@ -342,26 +434,28 @@ class ByteStream:
             elif v == 2: # entire line
                 if scr.cursor.y in scr.buffer: del scr.buffer[scr.cursor.y]
 
-        elif f == 'L':                      # IL — insert lines
+        elif f == 'L':                      # IL — insert lines within scroll region
             count   = p1()
+            top     = scr.cursor.y
+            bottom  = scr.scroll_bottom
             new_buf = defaultdict(lambda: defaultdict(Cell))
-            cy      = scr.cursor.y
             for r, row in scr.buffer.items():
-                if r < cy:
+                if r < top or r > bottom:
                     new_buf[r] = row
-                elif r + count < scr.lines:
+                elif r + count <= bottom:
                     new_buf[r + count] = row
             scr.buffer.clear()
             scr.buffer.update(new_buf)
 
-        elif f == 'M':                      # DL — delete lines
+        elif f == 'M':                      # DL — delete lines within scroll region
             count   = p1()
+            top     = scr.cursor.y
+            bottom  = scr.scroll_bottom
             new_buf = defaultdict(lambda: defaultdict(Cell))
-            cy      = scr.cursor.y
             for r, row in scr.buffer.items():
-                if r < cy:
+                if r < top or r > bottom:
                     new_buf[r] = row
-                elif r >= cy + count:
+                elif r >= top + count:
                     new_buf[r - count] = row
             scr.buffer.clear()
             scr.buffer.update(new_buf)
@@ -396,14 +490,10 @@ class ByteStream:
             for _ in range(p1()):
                 self._scroll_up()
 
-        elif f == 'T':                      # SD — scroll down N lines (reverse scroll)
-            count   = p1()
-            new_buf = defaultdict(lambda: defaultdict(Cell))
-            for r, row in scr.buffer.items():
-                if r + count < scr.lines:
-                    new_buf[r + count] = row
-            scr.buffer.clear()
-            scr.buffer.update(new_buf)
+        elif f == 'T':                      # SD — scroll down N lines within scroll region
+            count = p1()
+            for _ in range(count):
+                self._scroll_down()
 
         elif f == 's':                      # SCP — save cursor
             self._saved_x = scr.cursor.x
@@ -413,8 +503,43 @@ class ByteStream:
             scr.cursor.x = self._saved_x
             scr.cursor.y = self._saved_y
 
-        elif f in ('h', 'l', 'r', 'c', 'n', 'q', 'x', 'y', 'z', '{', '}', '~'):
-            pass    # mode set/reset and other sequences — ignored
+        elif f == 'r':                      # DECSTBM — set scrolling region
+            if private:
+                return                      # ?r is not standard
+            v = ints(0)
+            top = (v[0] if v and v[0] else 1) - 1
+            bottom = (v[1] if len(v) > 1 and v[1] else scr.lines) - 1
+            if top < 0: top = 0
+            if bottom >= scr.lines: bottom = scr.lines - 1
+            if top < bottom:
+                scr.scroll_top = top
+                scr.scroll_bottom = bottom
+            scr.cursor.x = 0
+            scr.cursor.y = 0
+
+        elif f == 'h' and private:          # DECSET — set mode
+            v = ints()
+            for mode in v:
+                if mode == 7:               # DECAWM — auto-wrap mode
+                    scr.autowrap = True
+                elif mode == 1049:         # Switch to alternate screen buffer
+                    self._switch_to_alt_screen()
+                # modes 1, 3, 4, 5, 6, 12, 25, 40, etc. — ignored
+
+        elif f == 'l' and private:          # DECRST — reset mode
+            v = ints()
+            for mode in v:
+                if mode == 7:               # DECAWM — auto-wrap off
+                    scr.autowrap = False
+                elif mode == 1049:         # Switch back to main screen buffer
+                    self._switch_from_alt_screen()
+
+        elif f in ('h', 'l') and not private:
+            # Non-private mode set/reset — ignored (line wrap, etc.)
+            pass
+
+        elif f in ('c', 'n', 'q', 'x', 'y', 'z', '{', '}', '~'):
+            pass    # other sequences — ignored
 
     # ── SGR attribute parser ──────────────────────────────────────────────
 
@@ -449,8 +574,8 @@ class ByteStream:
                 i, color = self._parse_extended_color(params, i)
                 if color: self._bg = color
             elif p == 49:                   self._bg = 'default'
-            elif 90 <= p <= 97:             self._fg = _ANSI_FG[p - 90]   # bright → same name
-            elif 100 <= p <= 107:           self._bg = _ANSI_FG[p - 100]
+            elif 90 <= p <= 97:             self._fg = _ANSI_BRIGHT[p - 90]
+            elif 100 <= p <= 107:           self._bg = _ANSI_BRIGHT[p - 100]
             i += 1
 
     @staticmethod
@@ -467,6 +592,6 @@ class ByteStream:
             return i + 4, f'{r:02x}{g:02x}{b:02x}'
         if kind == 5 and i + 2 < len(params):     # 256-color
             n = params[i + 2]
-            color = _ANSI_FG[n % 8] if n < 8 else 'default'
+            color = _color_256(n)
             return i + 2, color
         return i, None

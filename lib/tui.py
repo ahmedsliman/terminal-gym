@@ -125,6 +125,8 @@ def set_pty_size(fd, rows, cols):
 NAMED_COLORS = {
     'black': 0, 'red': 1, 'green': 2, 'brown': 3, 'yellow': 3,
     'blue': 4, 'magenta': 5, 'cyan': 6, 'white': 7,
+    'brightblack': 8, 'brightred': 9, 'brightgreen': 10, 'brightyellow': 11,
+    'brightblue': 12, 'brightmagenta': 13, 'brightcyan': 14, 'brightwhite': 15,
 }
 
 
@@ -155,6 +157,10 @@ BX = {
 
 
 # ─── TUI ──────────────────────────────────────────────────────────────────────
+MIN_ROWS = 24
+MIN_COLS = 70
+
+
 class Tui:
     LEFT_W = 26   # width of the missions column including borders
 
@@ -202,6 +208,13 @@ class Tui:
         # Quit confirmation — first Ctrl-Q/Ctrl-C arms it, second confirms
         self.quit_pending  = False
 
+        # Help overlay (?)
+        self.show_help     = False
+
+        # Welcome overlay (first-run)
+        self._welcome_file  = Path.home() / '.terminal-gym' / '.welcomed'
+        self.show_welcome   = not self._welcome_file.exists()
+
         # Command grading
         self.histfile     = None
         self.histfile_pos = 0
@@ -213,6 +226,7 @@ class Tui:
     # ── Layout ────────────────────────────────────────────────────────────
     def calculate_layout(self):
         self.term_rows, self.term_cols = get_term_size()
+        self._too_small = (self.term_rows < MIN_ROWS or self.term_cols < MIN_COLS)
         usable        = self.term_rows - 1          # rows 1…term_rows-1 are panels
         self.mid_h    = max(8, usable // 2 + 1)    # row where the horizontal divider sits
         self.tp_row   = self.mid_h + 1              # first content row of terminal panel
@@ -343,17 +357,17 @@ class Tui:
             self.evaluate_command(line)
 
     def evaluate_command(self, cmd):
-        """Match cmd against the current mission's expected commands."""
-        m     = self.missions[self.mission_idx]
-        pages = m.pages()
-        if not pages:
-            return
+        """Match cmd against any mission's expected commands (cross-mission grading)."""
         matched = False
-        for pi, page in enumerate(pages):
-            for exp in page.expected:
-                if self._matches(cmd, exp):
-                    self._mark_done(m.num, pi, page, exp)
-                    matched = True
+        for m in self.missions:
+            pages = m.pages()
+            if not pages:
+                continue
+            for pi, page in enumerate(pages):
+                for exp in page.expected:
+                    if self._matches(cmd, exp):
+                        self._mark_done(m.num, pi, page, exp)
+                        matched = True
         if matched:
             self.dirty = True
 
@@ -373,8 +387,10 @@ class Tui:
             page_grade['done'].append(cmd)
             save_grades(self.grades)
             self._page_cache.clear()   # ← grade ticks must update immediately
+            mission_label = f'Mission {mnum}' if mnum != self.missions[self.mission_idx].num else ''
+            label = f' (Mission {mnum})' if mnum != self.missions[self.mission_idx].num else ''
             self.flash(
-                f'✓  {page.title}  —  '
+                f'✓  {page.title}{label}  —  '
                 f'{len(page_grade["done"])}/{len(page.expected)} done'
             )
 
@@ -426,6 +442,8 @@ class Tui:
     # ── Input handling ────────────────────────────────────────────────────
     def _handle_terminal_view_mode(self, data):
         """Terminal panel focused but shell not active — VIEW MODE."""
+        if data == b'?':                           # ? — toggle help overlay
+            self.show_help = not self.show_help; self.dirty = True; return
         if data == b'\x11':                       # Ctrl-Q — quit TUI
             self._request_quit(); return
         self._cancel_quit()
@@ -459,6 +477,8 @@ class Tui:
 
     def _handle_nav_mode(self, data):
         """Dispatch a byte string received while in NORMAL MODE."""
+        if data == b'?':                           # ? — toggle help overlay
+            self.show_help = not self.show_help; self.dirty = True; return
         # ── Global ───────────────────────────────────────────────────────
         if data in (b'\x11', b'\x03'):            # Ctrl-Q / Ctrl-C — quit
             self._request_quit(); return
@@ -499,6 +519,14 @@ class Tui:
             self._on_enter(); self.dirty = True; return
 
     def handle_input(self, data):
+        if self.show_welcome:
+            self.show_welcome = False
+            self._welcome_file.parent.mkdir(parents=True, exist_ok=True)
+            self._welcome_file.touch()
+            self.dirty = True
+            return
+        if self.show_help:
+            self.show_help = False; self.dirty = True; return
         if self.quit_pending:
             if data in (b'y', b'Y'):
                 raise KeyboardInterrupt
@@ -635,13 +663,41 @@ class Tui:
 
     def render(self):
         hide_cursor()
-        self._draw_borders()
-        self._draw_missions()
-        self._draw_exercises()
-        self._draw_terminal()
-        self._draw_status()
+        if self._too_small:
+            self._draw_too_small()
+        else:
+            self._draw_borders()
+            self._draw_missions()
+            self._draw_exercises()
+            self._draw_terminal()
+            if self.show_help:
+                self._draw_help()
+            elif self.show_welcome:
+                self._draw_welcome()
+            self._draw_status()
         self._position_cursor()
         flush()
+
+    def _draw_too_small(self):
+        clear_screen()
+        rows, cols = self.term_rows, self.term_cols
+        lines = [
+            '',
+            f'{BOLD}{C_RED}  Terminal too small{RESET}',
+            '',
+            f'{C_TEXT}  terminal-gym needs at least {BOLD}{MIN_COLS}×{MIN_ROWS}{RESET}{C_TEXT} columns×rows.{RESET}',
+            f'{C_TEXT}  Current size: {BOLD}{cols}×{rows}{RESET}',
+            '',
+            f'{C_DIM}  Please resize your terminal window and the UI will reappear.{RESET}',
+        ]
+        mid = min(len(lines), rows)
+        start = max(1, (rows - mid) // 2)
+        for i, line in enumerate(lines):
+            row = start + i
+            if 1 <= row < rows:
+                goto(row, 1)
+                w(truncate_visible(line, cols))
+                w(RESET)
 
     # ── Rendering: borders ────────────────────────────────────────────────
     def _draw_borders(self):
@@ -774,13 +830,9 @@ class Tui:
         pg_nav = f'◀ {self.page_idx + 1}/{len(pages)} ▶' if pages else ''
         self._hbar(2, c1 + 1, iw, f'EXERCISES  {m.num} · {m.name}', pg_nav, 'exercises')
 
-        # Sub-header row: progress bar  (or flash message if active)
+        # Sub-header row: progress bar (always visible)
         self._panel_clear(3, c1 + 1, 1, iw)
-        now = time.time()
-        if self.message and now < self.message_until:
-            goto(3, c1 + 2)
-            w(f'{BOLD}{C_YELLOW}  {self.message}{RESET}')
-        elif page is not None:
+        if page is not None:
             done, total = self.page_progress(m.num, self.page_idx, page)
             if total > 0:
                 bar_len  = min(20, iw - 14)
@@ -793,6 +845,13 @@ class Tui:
                     else f'{C_GREEN}  ✓  All exercises complete!{RESET}'
                 )
                 goto(3, c1 + 2); w(progress)
+
+        # Flash message row (row 4, only when active — overlaps first body line)
+        self._panel_clear(4, c1 + 1, 1, iw)
+        now = time.time()
+        if self.message and now < self.message_until:
+            goto(4, c1 + 2)
+            w(f'{BOLD}{C_YELLOW}  {self.message}{RESET}')
 
         # Body
         body_row  = 4
@@ -932,6 +991,100 @@ class Tui:
         if c: codes.append(c)
         return f'\x1b[{";".join(codes)}m' if codes else ''
 
+    # ── Rendering: help overlay ────────────────────────────────────────────
+    def _draw_help(self):
+        rows = self.term_rows
+        cols = self.term_cols
+        lines = [
+            '',
+            f'  {BOLD}{C_MAUVE}terminal-gym  {C_DIM}— keybindings & symbols{RESET}',
+            '',
+            f'  {BOLD}{C_SAPPH}Navigation{RESET}',
+            f'    ↑↓ / j k        Move up / down',
+            f'    ← → / h l        Left / right',
+            f'    PgUp / PgDn      Scroll exercise page up / down',
+            f'    Enter            Open mission / toggle section',
+            f'    Tab / Shift-Tab  Cycle panel focus',
+            f'    1  2  3           Jump to missions / exercises / terminal',
+            '',
+            f'  {BOLD}{C_SAPPH}Terminal{RESET}',
+            f'    i  / Enter        Activate shell (from terminal panel)',
+            f'    Esc  / Ctrl-X     Leave shell mode',
+            f'    Alt+1  Alt+2      Jump to missions / exercises from shell',
+            '',
+            f'  {BOLD}{C_SAPPH}Pages{RESET}',
+            f'    ◀ [  / ] ▶       Previous / next exercise page',
+            '',
+            f'  {BOLD}{C_SAPPH}Other{RESET}',
+            f'    ?                 Toggle this help overlay',
+            f'    Ctrl-Q / Ctrl-C  Quit (press Y to confirm)',
+            '',
+            f'  {BOLD}{C_SAPPH}Symbols{RESET}',
+            f'    {C_GREEN}✓{RESET}  mission complete      {C_YELLOW}~{RESET}  in progress      {C_DIM}·{RESET}  not started',
+            f'    {C_GREEN}●{RESET}  active mission',
+            '',
+            f'  {C_DIM}Grading: type expected commands in the terminal to complete exercises.{RESET}',
+            f'  {C_DIM}Press any key or ? to close.{RESET}',
+        ]
+        # Semi-transparent overlay: draw a dark background then the text
+        overlay_top = 2
+        overlay_bot = min(rows - 2, overlay_top + len(lines))
+        for r in range(overlay_top, overlay_bot):
+            idx = r - overlay_top
+            goto(r, 1)
+            w(f'{BG_BASE}{C_TEXT}')
+            if idx < len(lines):
+                w(truncate_visible(lines[idx], cols - 1))
+            w(f'{" " * max(0, cols - 1 - visible_len(lines[idx] if idx < len(lines) else ""))}{RESET}')
+        # Fill remaining lines beneath the overlay with dark background
+        for r in range(overlay_bot, rows - 1):
+            goto(r, 1)
+            w(f'{BG_BASE}{" " * (cols - 1)}{RESET}')
+
+    # ── Rendering: welcome overlay ──────────────────────────────────────────
+    def _draw_welcome(self):
+        rows = self.term_rows
+        cols = self.term_cols
+        lines = [
+            '',
+            f'  {BOLD}{C_MAUVE}  Welcome to terminal-gym!{RESET}',
+            '',
+            f'  {C_TEXT}This is a 3-panel learning environment:{RESET}',
+            '',
+            f'  {C_MAUVE}┌──────────────┬─────────────────────────────────┐{RESET}',
+            f'  {C_MAUVE}│{RESET} {BOLD}MISSIONS{RESET}     {C_MAUVE}│{RESET} {BOLD}EXERCISES{RESET}  (top-right)',
+            f'  {C_MAUVE}│{RESET} Navigate       {C_MAUVE}│{RESET} Read instructions & hints',
+            f'  {C_MAUVE}│{RESET} with {BOLD}↑↓/jk{RESET}      {C_MAUVE}├─────────────────────────────────┤{RESET}',
+            f'  {C_MAUVE}│{RESET} {C_GREEN}●{RESET} = active      {C_MAUVE}│{RESET} {BOLD}TERMINAL{RESET}   (bottom-right)',
+            f'  {C_MAUVE}│{RESET} {C_GREEN}✓{RESET} = done        {C_MAUVE}│{RESET} Type commands to practice',
+            f'  {C_MAUVE}│{RESET} {C_YELLOW}~{RESET} = partial     {C_MAUVE}│{RESET} Type {BOLD}3{RESET} or {BOLD}Ctrl-X{RESET} to enter',
+            f'  {C_MAUVE}└──────────────┴─────────────────────────────────┘{RESET}',
+            '',
+            f'  {BOLD}{C_SAPPH}How it works{RESET}',
+            f'  1.  Read the exercise panel for instructions',
+            f'  2.  Switch to the terminal ({BOLD}3{RESET} or {BOLD}Ctrl-X{RESET})',
+            f'  3.  Type expected commands — they are graded automatically',
+            f'  4.  Press {BOLD}?{RESET} any time to see all keybindings',
+            '',
+            f'  {C_DIM}Press any key to continue…{RESET}',
+        ]
+        overlay_top = 2
+        overlay_bot = min(rows - 2, overlay_top + len(lines))
+        for r in range(overlay_top, overlay_bot):
+            idx = r - overlay_top
+            goto(r, 1)
+            w(f'{BG_BASE}{C_TEXT}')
+            if idx < len(lines):
+                w(truncate_visible(lines[idx], cols - 1))
+                padding = max(0, cols - 1 - visible_len(lines[idx]))
+                w(' ' * padding)
+            else:
+                w(' ' * (cols - 1))
+            w(RESET)
+        for r in range(overlay_bot, rows - 1):
+            goto(r, 1)
+            w(f'{BG_BASE}{" " * (cols - 1)}{RESET}')
+
     # ── Rendering: status bar ─────────────────────────────────────────────
     def _draw_status(self):
         rows = self.term_rows
@@ -967,16 +1120,17 @@ class Tui:
             self.message = ''
             if in_terminal and self.shell_active:
                 hint = (
-                    f'  {C_DIM}1: missions  ·  2: exercises  ·  Ctrl-Q: quit{RESET}'
+                    f'  {C_DIM}1: missions  ·  2: exercises  ·  Esc: exit shell  ·  ?: help  ·  Ctrl-Q: quit{RESET}'
                 )
             elif in_terminal:
                 hint = (
-                    f'  {C_DIM}1: missions  ·  2: exercises  ·  Esc: back to nav  ·  Ctrl-Q: quit{RESET}'
+                    f'  {C_DIM}1: missions  ·  2: exercises  ·  Esc: back to nav  ·  ?: help  ·  Ctrl-Q: quit{RESET}'
                 )
             elif self.focus == 'tree':
                 hint = (
                     f'  {C_PEACH}← 3 / Ctrl-X  for shell{RESET}{BG_MANTLE}'
-                    f'{C_DIM}  ·  ↑↓/jk: navigate'
+                    f'{C_DIM}  ·  ? : help'
+                    f'  ·  ↑↓/jk: navigate'
                     f'  ·  Enter: open/toggle'
                     f'  ·  ←→: collapse/expand'
                     f'  ·  Ctrl-Q: quit{RESET}'
@@ -984,7 +1138,8 @@ class Tui:
             else:   # exercises
                 hint = (
                     f'  {C_PEACH}← 3 / Ctrl-X  for shell{RESET}{BG_MANTLE}'
-                    f'{C_DIM}  ·  ←→/[]: page'
+                    f'{C_DIM}  ·  ? : help'
+                    f'  ·  ←→/[]: page'
                     f'  ·  ↑↓/jk: scroll'
                     f'  ·  1: missions'
                     f'  ·  Ctrl-Q: quit{RESET}'
