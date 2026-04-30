@@ -1200,6 +1200,7 @@ class Tui:
         filled   = int(round(bar_len * ex_done / max(1, ex_total)))
         bar      = f'{C_GREEN}{"█" * filled}{C_DIM}{"░" * (bar_len - filled)}{RESET}'
         m_done   = self._overall_progress()
+        total    = len(self.missions)
         counter  = f' {m_done}/{total}m {ex_done}/{ex_total} '
         label    = f'{BG_MANTLE}{bar}{C_DIM}{counter}{RESET}'
         label_w  = bar_len + len(counter)
