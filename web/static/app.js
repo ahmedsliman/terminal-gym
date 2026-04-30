@@ -86,6 +86,26 @@
     ws.addEventListener("message", (e) => {
       if (e.data instanceof ArrayBuffer) {
         term.write(new Uint8Array(e.data));
+      } else if (typeof e.data === "string") {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "grade") {
+            // Update grades and re-render
+            const mNum = msg.mission;
+            const pageKey = "page_" + msg.page;
+            if (!grades[mNum]) grades[mNum] = {};
+            grades[mNum][pageKey] = {
+              title: msg.title,
+              expected: msg.expected,
+              done: msg.done,
+            };
+            saveGrades();
+            renderMissions();
+            renderExercises();
+            renderStatus();
+            flashMessage(`✓  ${msg.title}  —  ${msg.done.length}/${msg.expected.length} done`);
+          }
+        } catch (err) { /* ignore non-JSON text */ }
       }
     });
 
@@ -405,7 +425,15 @@
     focusPanel = panel;
     renderStatus();
 
-    // Visual feedback on panel headers
+    // Visual feedback on panel headers and borders
+    document.querySelectorAll(".panel").forEach((el) => {
+      el.classList.remove("focused");
+    });
+    const activePanel = document.querySelector("." + panel + "-panel");
+    if (activePanel) {
+      activePanel.classList.add("focused");
+    }
+
     document.querySelectorAll(".panel-header").forEach((el) => {
       el.style.background = "";
     });
@@ -452,8 +480,33 @@
   })();
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────
+  const $helpOverlay = document.getElementById("help-overlay");
+
   document.addEventListener("keydown", (e) => {
-    // Only handle shortcuts when not focused on terminal
+    // Help overlay: any key dismisses, ? toggles
+    if ($helpOverlay && !$helpOverlay.hidden) {
+      $helpOverlay.hidden = true;
+      e.preventDefault();
+      return;
+    }
+
+    // ? key toggles help overlay (from any panel)
+    if (e.key === "?") {
+      if ($helpOverlay) {
+        $helpOverlay.hidden = !$helpOverlay.hidden;
+        e.preventDefault();
+      }
+      return;
+    }
+
+    // Esc from terminal returns focus to nav
+    if (e.key === "Escape" && focusPanel === "terminal") {
+      setFocus("exercises");
+      e.preventDefault();
+      return;
+    }
+
+    // Only handle other shortcuts when not focused on terminal
     if (focusPanel === "terminal") return;
 
     const mission = content?.missions[missionIdx];
@@ -505,6 +558,20 @@
     try {
       localStorage.setItem("terminal-gym-grades", JSON.stringify(grades));
     } catch { /* ignore */ }
+  }
+
+  // ── Flash message (toast notification) ────────────────────────────────
+  let flashTimer = null;
+  function flashMessage(text, ms = 3000) {
+    const el = $exProgress;
+    if (!el) return;
+    const prev = el.innerHTML;
+    el.innerHTML = '<span class="ex-bold" style="color: var(--yellow);">  ' + text + '</span>';
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => {
+      el.innerHTML = prev;
+      renderExercises();
+    }, ms);
   }
 
   // ── Boot ───────────────────────────────────────────────────────────────

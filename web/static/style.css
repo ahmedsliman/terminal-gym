@@ -59,19 +59,26 @@ html, body {
 .missions-panel {
   width: 240px;
   flex-shrink: 0;
-  border-right: 1px solid var(--surface1);
+  border-right: 2px solid var(--surface1);
+  transition: border-color 0.15s;
 }
+.missions-panel.focused { border-color: var(--mauve); }
 
 .exercises-panel {
   flex: 1;
   min-height: 120px;
-  border-bottom: 1px solid var(--surface1);
+  border-bottom: 2px solid var(--surface1);
+  transition: border-color 0.15s;
 }
+.exercises-panel.focused { border-bottom-color: var(--sapphire); }
 
 .terminal-panel {
   height: 45%;
   min-height: 80px;
+  border-top: 2px solid var(--surface1);
+  transition: border-color 0.15s;
 }
+.terminal-panel.focused { border-top-color: var(--green); }
 
 /* ── Panel headers ──────────────────────────────────────────────────────── */
 .panel-header {
@@ -104,10 +111,16 @@ html, body {
 }
 .page-nav .nav-btn {
   cursor: pointer;
-  padding: 0 4px;
-  color: var(--subtext1);
-  transition: color 0.15s;
+  padding: 4px 8px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.15s;
 }
+.page-nav .nav-btn:hover { background: var(--surface0); }
 .page-nav .nav-btn:hover { color: var(--sapphire); }
 .page-nav .nav-btn.disabled { color: var(--surface2); pointer-events: none; }
 
@@ -315,7 +328,75 @@ html, body {
 .terminal-body .xterm-viewport::-webkit-scrollbar-track { background: var(--base); }
 .terminal-body .xterm-viewport::-webkit-scrollbar-thumb { background: var(--surface1); border-radius: 3px; }
 
-/* ── Responsive ─────────────────────────────────────────────────────────── */
+/* ── Focus visible ──────────────────────────────────────────────────────── */
+.mission-item:focus-visible,
+.section-header:focus-visible,
+.nav-btn:focus-visible {
+  outline: 2px solid var(--sapphire);
+  outline-offset: -2px;
+}
+
+/* ── Help overlay ─────────────────────────────────────────────────────────── */
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.help-overlay[hidden] { display: none; }
+.help-content {
+  background: var(--base);
+  border: 1px solid var(--surface1);
+  border-radius: 8px;
+  padding: 24px 32px;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  color: var(--text);
+}
+.help-content h2 {
+  color: var(--mauve);
+  font-size: 16px;
+  margin-bottom: 16px;
+  letter-spacing: 0.05em;
+}
+.help-content h3 {
+  color: var(--sapphire);
+  font-size: 13px;
+  margin: 12px 0 8px;
+}
+.help-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
+.help-content dl { margin: 0; }
+.help-content dt { color: var(--yellow); font-weight: 600; display: inline; }
+.help-content dd { display: inline; margin-left: 4px; color: var(--subtext1); }
+.help-content dd::after { content: ''; display: block; margin-bottom: 4px; }
+.help-content kbd {
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text);
+}
+.help-dismiss {
+  margin-top: 16px;
+  color: var(--overlay0);
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (max-width: 500px) {
+  .help-grid { grid-template-columns: 1fr; }
+  .help-content { padding: 16px 20px; }
+}
 @media (max-width: 700px) {
   .missions-panel { width: 180px; }
 }

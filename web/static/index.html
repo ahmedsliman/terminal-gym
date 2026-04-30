@@ -11,31 +11,31 @@
 
   <div class="layout">
     <!-- Left: Missions tree -->
-    <div class="panel missions-panel">
+    <div class="panel missions-panel" role="navigation" aria-label="Missions">
       <div class="panel-header missions-header">
         <span>MISSIONS</span>
-        <span class="progress-counter" id="progress-counter"></span>
+        <span class="progress-counter" id="progress-counter" aria-label="Progress"></span>
       </div>
-      <div class="panel-body" id="missions-list"></div>
+      <div class="panel-body" id="missions-list" role="tree" aria-label="Mission list"></div>
     </div>
 
     <!-- Right: Exercises + Terminal -->
     <div class="right">
       <!-- Top-right: Exercises -->
-      <div class="panel exercises-panel">
+      <div class="panel exercises-panel" role="main" aria-label="Exercises">
         <div class="panel-header exercises-header">
           <span id="exercises-title">EXERCISES</span>
           <span class="page-nav" id="page-nav"></span>
         </div>
-        <div class="panel-sub" id="exercises-progress"></div>
-        <div class="panel-body exercises-body" id="exercises-content"></div>
+        <div class="panel-sub" id="exercises-progress" aria-live="polite"></div>
+        <div class="panel-body exercises-body" id="exercises-content" role="document" aria-label="Exercise content"></div>
       </div>
 
       <!-- Resize handle -->
-      <div class="resize-handle" id="resize-handle"></div>
+      <div class="resize-handle" id="resize-handle" role="separator" aria-label="Resize exercises and terminal panels"></div>
 
       <!-- Bottom-right: Terminal -->
-      <div class="panel terminal-panel">
+      <div class="panel terminal-panel" role="region" aria-label="Terminal">
         <div class="panel-header terminal-header">
           <span id="terminal-title">TERMINAL</span>
           <span class="terminal-hint" id="terminal-hint"></span>
@@ -45,9 +45,47 @@
     </div>
   </div>
 
-  <div class="status-bar" id="status-bar">
-    <span class="status-left" id="status-left"></span>
+  <div class="status-bar" id="status-bar" role="status">
+    <span class="status-left" id="status-left" aria-live="polite"></span>
     <span class="status-right" id="status-right"></span>
+  </div>
+
+  <div class="help-overlay" id="help-overlay" role="dialog" aria-label="Keyboard shortcuts" hidden>
+    <div class="help-content">
+      <h2>Keyboard Shortcuts</h2>
+      <div class="help-grid">
+        <div class="help-section">
+          <h3>Navigation</h3>
+          <dl>
+            <dt><kbd>j</kbd> / <kbd>&#x2193;</kbd></dt><dd>Move down</dd>
+            <dt><kbd>k</kbd> / <kbd>&#x2191;</kbd></dt><dd>Move up</dd>
+            <dt><kbd>1</kbd></dt><dd>Focus missions panel</dd>
+            <dt><kbd>2</kbd></dt><dd>Focus exercises panel</dd>
+            <dt><kbd>3</kbd> / <kbd>i</kbd></dt><dd>Focus terminal</dd>
+            <dt><kbd>Tab</kbd></dt><dd>Cycle panel focus</dd>
+          </dl>
+        </div>
+        <div class="help-section">
+          <h3>Pages</h3>
+          <dl>
+            <dt><kbd>[</kbd> / <kbd>&#x2190;</kbd></dt><dd>Previous page</dd>
+            <dt><kbd>]</kbd> / <kbd>&#x2192;</kbd></dt><dd>Next page</dd>
+          </dl>
+        </div>
+        <div class="help-section">
+          <h3>Terminal</h3>
+          <dl>
+            <dt><kbd>Esc</kbd></dt><dd>Exit terminal / close overlay</dd>
+            <dt><kbd>?</kbd></dt><dd>Toggle this help</dd>
+          </dl>
+        </div>
+        <div class="help-section">
+          <h3>Grading</h3>
+          <p>Type expected commands in the terminal to complete exercises. <span class="ex-code">&#x2713;</span> = done, <span class="ex-partial">~</span> = in progress, <span class="ex-dim">&middot;</span> = not started</p>
+        </div>
+      </div>
+      <p class="help-dismiss">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</p>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>

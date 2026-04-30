@@ -20,6 +20,7 @@ import pty
 import signal
 import struct
 import sys
+import tempfile
 import termios
 from pathlib import Path
 
@@ -29,6 +30,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from core.export import export_content  # noqa: E402
+from core.grading import load_grades, save_grades, matches  # noqa: E402
+from core.missions import load_missions  # noqa: E402
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -58,7 +61,6 @@ class PtySession:
             # ── Child ──
             os.close(master_fd)
             os.setsid()
-            fcntl.ioctl(slave_fd, termios.TIOCSCTTY, 0)
             os.dup2(slave_fd, 0)
             os.dup2(slave_fd, 1)
             os.dup2(slave_fd, 2)
@@ -67,6 +69,16 @@ class PtySession:
             env = os.environ.copy()
             env["TERM"] = "xterm-256color"
             env["PS1"] = r"\[\e[32m\]\u@terminal-gym\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\$ "
+            env["HISTFILE"] = os.path.join(
+                tempfile.gettempdir(), f"tgym_hist_{os.getpid()}.log"
+            )
+            env["HISTSIZE"] = "10000"
+            env["HISTFILESIZE"] = "10000"
+            env["PROMPT_COMMAND"] = "history -a"
+            try:
+                fcntl.ioctl(slave_fd, termios.TIOCSCTTY, 0)
+            except OSError:
+                pass
             os.execve("/bin/bash", ["/bin/bash", "--norc", "-i"], env)
 
         # ── Parent ──
@@ -104,12 +116,13 @@ class PtySession:
         if self.pid is not None:
             try:
                 os.kill(self.pid, signal.SIGTERM)
-            except OSError:
-                pass
-            try:
-                os.waitpid(self.pid, os.WNOHANG)
-            except ChildProcessError:
-                pass
+                os.waitpid(self.pid, 0)
+            except (OSError, ChildProcessError):
+                try:
+                    os.kill(self.pid, signal.SIGKILL)
+                    os.waitpid(self.pid, 0)
+                except (OSError, ChildProcessError):
+                    pass
             self.pid = None
 
 
@@ -122,6 +135,10 @@ async def ws_terminal(request):
 
     session = PtySession()
     session.start()
+    histfile = os.path.join(tempfile.gettempdir(), f"tgym_hist_{session.pid}.log")
+    histfile_pos = 0
+    missions = load_missions(str(ROOT / "missions"))
+    grades = load_grades()
 
     loop = asyncio.get_event_loop()
 
@@ -154,6 +171,49 @@ async def ws_terminal(request):
 
     reader = asyncio.create_task(pty_reader())
 
+    # Poll HISTFILE for grading events every 500ms
+    async def grading_poller():
+        nonlocal histfile_pos, grades
+        while True:
+            await asyncio.sleep(0.5)
+            try:
+                if not os.path.exists(histfile):
+                    continue
+                with open(histfile, 'r', errors='replace') as f:
+                    f.seek(histfile_pos)
+                    chunk = f.read()
+                    histfile_pos = f.tell()
+                for line in chunk.splitlines():
+                    cmd = line.strip()
+                    if not cmd or cmd.startswith('#'):
+                        continue
+                    for m in missions:
+                        for pi, page in enumerate(m.pages()):
+                            for exp in page.expected:
+                                if matches(cmd, exp):
+                                    key = f'page_{pi}'
+                                    mg = grades.setdefault(m.num, {})
+                                    pg = mg.setdefault(key, {
+                                        'title': page.title,
+                                        'expected': page.expected,
+                                        'done': [],
+                                    })
+                                    if cmd not in pg['done']:
+                                        pg['done'].append(cmd)
+                                        save_grades(grades)
+                                        await ws.send_str(json.dumps({
+                                            'type': 'grade',
+                                            'mission': m.num,
+                                            'page': pi,
+                                            'title': page.title,
+                                            'expected': page.expected,
+                                            'done': pg['done'],
+                                        }))
+            except (OSError, asyncio.CancelledError):
+                pass
+
+    grader = asyncio.create_task(grading_poller())
+
     try:
         async for msg in ws:
             if msg.type == web.WSMsgType.BINARY:
@@ -167,6 +227,7 @@ async def ws_terminal(request):
                     pass
     finally:
         reader.cancel()
+        grader.cancel()
         session.cleanup()
 
     return ws

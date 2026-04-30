@@ -173,7 +173,13 @@ class Tui:
                 self.mission_idx = i
                 break
 
-        self.section_expanded  = {name: True for name, _ in SECTIONS}
+        self.section_expanded  = {name: False for name, _ in SECTIONS}
+        # Expand only the section containing the starting mission
+        start_num = start_num if isinstance(start_num, str) else f'{start_num:02d}'
+        for sec_name, nums in SECTIONS:
+            if start_num in nums:
+                self.section_expanded[sec_name] = True
+                break
         self._tree_flat_cache  = None          # invalidated by _invalidate_tree()
 
         self.tree_cursor = self._mission_flat_idx(self.mission_idx)
@@ -508,11 +514,19 @@ class Tui:
         if data in (b'\x1b[C', b'l', b']', b'.'):
             self._on_right(); self.dirty = True; return
 
-        # ── Page scroll ───────────────────────────────────────────────────
-        if data == b'\x1b[5~':                    # PgUp
-            self._scroll_page(-5); self.dirty = True; return
-        if data == b'\x1b[6~':                    # PgDn
-            self._scroll_page(+5); self.dirty = True; return
+# ── Page scroll ───────────────────────────────────────────────────
+            if data == b'\x1b[5~':                    # PgUp
+                self._scroll_page(-1); self.dirty = True; return
+            if data == b'\x1b[6~':                    # PgDn
+                self._scroll_page(+1); self.dirty = True; return
+            if data in (b'\x1b[H', b'\x1b[1~'):      # Home — jump to top
+                self.page_scroll = 0; self.dirty = True; return
+            if data in (b'\x1b[F', b'\x1b[4~'):      # End — jump to bottom
+                pages = self.missions[self.mission_idx].pages()
+                if pages:
+                    wrapped = self._wrapped_page(self.mission_idx, self.page_idx, max(1, self.term_cols - self.LEFT_W - 4))
+                    max_scroll = max(0, len(wrapped) - max(1, self.mid_h - 6))
+                    self.page_scroll = max_scroll; self.dirty = True; return
 
         # ── Enter ─────────────────────────────────────────────────────────
         if data in (b'\r', b'\n'):
@@ -554,10 +568,12 @@ class Tui:
             flat = self._tree_flat()
             self.tree_cursor = max(0, min(len(flat) - 1, self.tree_cursor + delta))
         elif self.focus == 'exercises':
-            self._scroll_page(delta)
+            self._scroll_page(delta, lines=1)
 
-    def _scroll_page(self, delta):
-        self.page_scroll = max(0, self.page_scroll + delta)
+    def _scroll_page(self, delta, lines=None):
+        if lines is None:
+            lines = max(3, self.mid_h - 6)
+        self.page_scroll = max(0, self.page_scroll + delta * lines)
 
     def _page(self, delta):
         """Advance the exercise page by delta (for exercises focus only)."""
@@ -660,6 +676,13 @@ class Tui:
         for r in range(nrows):
             goto(r1 + r, c1)
             w(blank)
+
+    def _nums_for_section(self, section_name):
+        """Return the list of mission number strings for a section."""
+        for name, nums in SECTIONS:
+            if name == section_name:
+                return nums
+        return []
 
     def render(self):
         hide_cursor()
@@ -776,9 +799,22 @@ class Tui:
             if kind == 'section':
                 arrow = '▼' if self.section_expanded.get(payload, True) else '▶'
                 style = (BOLD + C_MAUVE) if is_cursor else (C_SUB + BOLD)
-                label = payload[:iw - 3]
+                sec_nums = self._nums_for_section(payload)
+                sec_done = sum(
+                    1 for m in self.missions
+                    if m.num in sec_nums
+                    and (p := self.mission_progress(m))[0] >= p[1] > 0
+                )
+                sec_total = len(sec_nums)
+                prog = f'{C_DIM}{sec_done}/{sec_total}{RESET}' if sec_total else ''
+                # Right-align the progress counter within the panel
+                left = f'{row_bg} {style}{arrow} {payload}'
+                right = f'{prog} '
+                left_w = visible_len(f' {arrow} {payload}')
+                right_w = visible_len(f'{sec_done}/{sec_total} ')
+                gap = max(1, iw - left_w - right_w)
                 goto(row, 2)
-                w(f'{row_bg} {style}{arrow} {label}{RESET}')
+                w(f'{left}{rr}{" " * gap}{right}{RESET}')
 
             else:
                 # Mission row
@@ -813,9 +849,18 @@ class Tui:
                 else:
                     ns, ne = C_SUB, RESET
 
-                label = m.name[:name_w]
+                label = truncate_visible(m.name, name_w)
                 goto(row, 2)
                 w(f'{row_bg}  {cur} {C_DIM}{m.num}{rr} {ns}{label:<{name_w}}{ne} {mark}{RESET}')
+
+        # Scroll indicators: ▲ if content above, ▼ if content below
+        if self.tree_scroll > 0:
+            goto(3, self.LEFT_W - 1)
+            w(f'{C_DIM}▲{RESET}')
+        if self.tree_scroll + max_visible < len(flat):
+            end_row = min(3 + max_visible, self.term_rows - 2)
+            goto(end_row - 1, self.LEFT_W - 1)
+            w(f'{C_DIM}▼{RESET}')
 
     # ── Rendering: exercises panel ────────────────────────────────────────
     def _draw_exercises(self):
@@ -928,7 +973,7 @@ class Tui:
         # Header bar — make current mode and how to switch unmistakably clear
         m            = self.missions[self.mission_idx]
         done, total  = self.mission_progress(m)
-        grade_str    = f'{done}/{total}' if total else ''
+        grade_str    = f'{C_GREEN}◉{RESET} {done}/{total}' if total else ''
         focused      = self.focus == 'terminal'
         if focused and self.shell_active:
             title     = 'SHELL MODE'
@@ -1148,13 +1193,14 @@ class Tui:
         badge = f'{BG_MANTLE}{BOLD}{mode_color} [{mode_label}]{RESET}{BG_MANTLE}'
         w(f'{badge}{hint}')
 
-        # Right-aligned overall progress bar: ████░░░░ 5/17
-        done_cnt = self._overall_progress()
-        total    = len(self.missions)
+        # Right-aligned progress bar: exercises done / total exercises
+        ex_done  = sum(self.mission_progress(m)[0] for m in self.missions)
+        ex_total = sum(self.mission_progress(m)[1] for m in self.missions)
         bar_len  = 10
-        filled   = int(round(bar_len * done_cnt / max(1, total)))
+        filled   = int(round(bar_len * ex_done / max(1, ex_total)))
         bar      = f'{C_GREEN}{"█" * filled}{C_DIM}{"░" * (bar_len - filled)}{RESET}'
-        counter  = f' {done_cnt}/{total} '
+        m_done   = self._overall_progress()
+        counter  = f' {m_done}/{total}m {ex_done}/{ex_total} '
         label    = f'{BG_MANTLE}{bar}{C_DIM}{counter}{RESET}'
         label_w  = bar_len + len(counter)
         goto(rows, cols - label_w)
